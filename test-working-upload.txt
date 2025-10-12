@@ -1,0 +1,11 @@
+This is a test text file to verify that the upload functionality is working correctly.
+
+The upload error has been fixed by:
+1. Removing the problematic pdf-parse dependency that was causing the 500 error
+2. Simplifying the file processing to focus on text files
+3. Adding clear user feedback about file support limitations
+4. Providing helpful error messages and guidance
+
+Text files should now upload successfully without any errors!
+
+You can test this by uploading this file and then generating speech from the extracted text.

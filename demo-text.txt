@@ -1,0 +1,11 @@
+Welcome to Voice Studio! This is a completely redesigned text-to-speech application with a beautiful, modern interface. 
+
+The new UI features:
+- Stunning gradient backgrounds with animated elements
+- Drag and drop file upload functionality
+- Beautiful card-based layouts
+- Smooth animations and micro-interactions
+- Responsive design for all devices
+- Enhanced visual feedback and loading states
+
+Try uploading this file or typing your own text to experience the improved interface. Select different voices and use the preview button to test them before generating your speech!

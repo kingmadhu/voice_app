@@ -1,0 +1,1 @@
+Hello! This is a test file for the Text-to-Speech application. The application should be able to read this text aloud using different voices. You can test both local and online voices to hear the difference in sound quality and characteristics.
