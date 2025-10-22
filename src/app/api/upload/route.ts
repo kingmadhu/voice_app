@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { writeFile, mkdir, unlink } from 'fs/promises'
 import { join, extname } from 'path'
 import { existsSync } from 'fs'
+import { tmpdir } from 'os'
 import mammoth from 'mammoth'
 import { randomUUID } from 'crypto'
 
@@ -28,10 +29,26 @@ export async function POST(request: NextRequest) {
     const bytes = await file.arrayBuffer()
     const buffer = Buffer.from(bytes)
 
-    // Create uploads directory (inside project root) if it doesn't exist
-    const uploadsDir = join(process.cwd(), 'uploads')
-    if (!existsSync(uploadsDir)) {
-      await mkdir(uploadsDir, { recursive: true })
+    // Prefer project uploads directory but fall back to OS tmpdir if it's not writable
+    const projectUploadsDir = join(process.cwd(), 'uploads')
+    let uploadsDir = projectUploadsDir
+    try {
+      if (!existsSync(uploadsDir)) {
+        await mkdir(uploadsDir, { recursive: true })
+      }
+    } catch (err) {
+      console.warn('Could not create project uploads dir, falling back to OS temp dir:', err)
+      const fallbackDir = join(tmpdir(), 'voice_app_uploads')
+      if (!existsSync(fallbackDir)) {
+        try {
+          await mkdir(fallbackDir, { recursive: true })
+        } catch (mkdirErr) {
+          console.error('Failed to create fallback temp uploads dir:', mkdirErr)
+          // As a last resort, throw the original error so the request fails loudly
+          throw err
+        }
+      }
+      uploadsDir = fallbackDir
     }
 
     // Sanitize original filename (strip paths and unsafe chars)
