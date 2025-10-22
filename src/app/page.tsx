@@ -1,430 +1,562 @@
-'use client'
+"use client";
 
-import { useState, useRef, useCallback, useEffect } from 'react'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Textarea } from '@/components/ui/textarea'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Label } from '@/components/ui/label'
-import { Upload, Play, Pause, Download, Volume2, FileText, Loader2, Square, RotateCcw, TestTube, Mic, Sparkles, Zap, Headphones, Settings, Sliders, Save, Trash2, Share2, Plus, Radio, User, Smartphone, Archive } from 'lucide-react'
-import { useToast } from '@/hooks/use-toast'
-import { Progress } from '@/components/ui/progress'
-import { Badge } from '@/components/ui/badge'
-import { Separator } from '@/components/ui/separator'
-import { Slider } from '@/components/ui/slider'
-import { Switch } from '@/components/ui/switch'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { useState, useRef, useCallback, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
+import {
+  Upload,
+  Play,
+  Pause,
+  Download,
+  Volume2,
+  FileText,
+  Loader2,
+  Square,
+  RotateCcw,
+  TestTube,
+  Mic,
+  Sparkles,
+  Zap,
+  Headphones,
+  Settings,
+  Sliders,
+  Save,
+  Trash2,
+  Share2,
+  Plus,
+  Radio,
+  User,
+  Smartphone,
+  Archive,
+} from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { Progress } from "@/components/ui/progress";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { Slider } from "@/components/ui/slider";
+import { Switch } from "@/components/ui/switch";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 // Mobile components
-import { useMobileEnhanced } from '@/hooks/use-mobile-enhanced'
-import { BottomNavigation } from '@/components/mobile/bottom-navigation'
-import { AppBar } from '@/components/mobile/app-bar'
-import { Fab } from '@/components/mobile/fab'
-import { MobileHome } from '@/components/mobile/mobile-home'
-import { MobileVoiceSelector } from '@/components/mobile/mobile-voice-selector'
-import { MobileSettings } from '@/components/mobile/mobile-settings'
-import { MobileDownloads } from '@/components/mobile/mobile-downloads'
+import { useMobileEnhanced } from "@/hooks/use-mobile-enhanced";
+import { BottomNavigation } from "@/components/mobile/bottom-navigation";
+import { AppBar } from "@/components/mobile/app-bar";
+import { Fab } from "@/components/mobile/fab";
+import { MobileHome } from "@/components/mobile/mobile-home";
+import { MobileVoiceSelector } from "@/components/mobile/mobile-voice-selector";
+import { MobileSettings } from "@/components/mobile/mobile-settings";
+import { MobileDownloads } from "@/components/mobile/mobile-downloads";
 
 interface Voice {
-  id: string
-  name: string
-  language: string
-  gender: string
-  source: 'local' | 'online' | 'browser'
-  isDefault?: boolean
-  voiceURI?: string
+  id: string;
+  name: string;
+  language: string;
+  gender: string;
+  source: "local" | "online" | "browser";
+  isDefault?: boolean;
+  voiceURI?: string;
 }
 
 interface VoiceSettings {
-  rate: number
-  pitch: number
-  volume: number
+  rate: number;
+  pitch: number;
+  volume: number;
 }
 
 interface PodcastSegment {
-  id: string
-  voiceId: string
-  text: string
-  voice: Voice
+  id: string;
+  voiceId: string;
+  text: string;
+  voice: Voice;
 }
 
 interface VoiceProfile {
-  id: string
-  name: string
-  settings: VoiceSettings
-  voiceId: string
-  createdAt: Date
+  id: string;
+  name: string;
+  settings: VoiceSettings;
+  voiceId: string;
+  createdAt: Date;
 }
 
 const fallbackVoices: Voice[] = [
   // Online voices (using free TTS APIs)
-  { id: 'online-1', name: 'Emma (Natural)', language: 'en-US', gender: 'Female', source: 'online' },
-  { id: 'online-2', name: 'James (Natural)', language: 'en-US', gender: 'Male', source: 'online' },
-  { id: 'online-3', name: 'Ava (Natural)', language: 'en-GB', gender: 'Female', source: 'online' },
-  { id: 'online-4', name: 'Oliver (Natural)', language: 'en-GB', gender: 'Male', source: 'online' },
-]
+  {
+    id: "online-1",
+    name: "Emma (Natural)",
+    language: "en-US",
+    gender: "Female",
+    source: "online",
+  },
+  {
+    id: "online-2",
+    name: "James (Natural)",
+    language: "en-US",
+    gender: "Male",
+    source: "online",
+  },
+  {
+    id: "online-3",
+    name: "Ava (Natural)",
+    language: "en-GB",
+    gender: "Female",
+    source: "online",
+  },
+  {
+    id: "online-4",
+    name: "Oliver (Natural)",
+    language: "en-GB",
+    gender: "Male",
+    source: "online",
+  },
+];
 
 export default function TTSApp() {
-  const [text, setText] = useState('')
-  const [selectedVoice, setSelectedVoice] = useState<string>('')
-  const [isPlaying, setIsPlaying] = useState(false)
-  const [isProcessing, setIsProcessing] = useState(false)
-  const [audioUrl, setAudioUrl] = useState<string | null>(null)
-  const [progress, setProgress] = useState(0)
-  const [uploadedFileName, setUploadedFileName] = useState<string>('')
-  const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([])
-  const [browserVoices, setBrowserVoices] = useState<Voice[]>([])
-  const [allVoices, setAllVoices] = useState<Voice[]>([])
-  const [voicesLoaded, setVoicesLoaded] = useState(false)
-  const [isDragging, setIsDragging] = useState(false)
-  const [currentWordIndex, setCurrentWordIndex] = useState(-1)
-  const [isPaused, setIsPaused] = useState(false)
-  const [words, setWords] = useState<string[]>([])
-  
+  const [text, setText] = useState("");
+  const [selectedVoice, setSelectedVoice] = useState<string>("");
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [progress, setProgress] = useState(0);
+  const [uploadedFileName, setUploadedFileName] = useState<string>("");
+  const [availableVoices, setAvailableVoices] = useState<
+    SpeechSynthesisVoice[]
+  >([]);
+  const [browserVoices, setBrowserVoices] = useState<Voice[]>([]);
+  const [allVoices, setAllVoices] = useState<Voice[]>([]);
+  const [voicesLoaded, setVoicesLoaded] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const [currentWordIndex, setCurrentWordIndex] = useState(-1);
+  const [isPaused, setIsPaused] = useState(false);
+  const [words, setWords] = useState<string[]>([]);
+
   // New feature states
   const [voiceSettings, setVoiceSettings] = useState<VoiceSettings>({
     rate: 1.0,
     pitch: 1.0,
-    volume: 1.0
-  })
-  const [isPodcastMode, setIsPodcastMode] = useState(false)
-  const [podcastSegments, setPodcastSegments] = useState<PodcastSegment[]>([])
-  const [selectedPodcastVoices, setSelectedPodcastVoices] = useState<string[]>([])
-  const [voiceProfiles, setVoiceProfiles] = useState<VoiceProfile[]>([])
-  const [showVoiceControls, setShowVoiceControls] = useState(false)
-  const [currentSegmentIndex, setCurrentSegmentIndex] = useState(0)
-  const [projectInfo, setProjectInfo] = useState<{ fileName: string; fileSizeFormatted: string; exists: boolean } | null>(null)
-  
+    volume: 1.0,
+  });
+  const [isPodcastMode, setIsPodcastMode] = useState(false);
+  const [podcastSegments, setPodcastSegments] = useState<PodcastSegment[]>([]);
+  const [selectedPodcastVoices, setSelectedPodcastVoices] = useState<string[]>(
+    []
+  );
+  const [voiceProfiles, setVoiceProfiles] = useState<VoiceProfile[]>([]);
+  const [showVoiceControls, setShowVoiceControls] = useState(false);
+  const [currentSegmentIndex, setCurrentSegmentIndex] = useState(0);
+  const [projectInfo, setProjectInfo] = useState<{
+    fileName: string;
+    fileSizeFormatted: string;
+    exists: boolean;
+  } | null>(null);
+
   // Mobile states
-  const [activeMobileTab, setActiveMobileTab] = useState('home')
-  const [showVoiceSelector, setShowVoiceSelector] = useState(false)
-  const mobileInfo = useMobileEnhanced()
-  
-  const fileInputRef = useRef<HTMLInputElement>(null)
-  const audioRef = useRef<HTMLAudioElement>(null)
-  const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null)
-  const { toast } = useToast()
+  const [activeMobileTab, setActiveMobileTab] = useState("home");
+  const [showVoiceSelector, setShowVoiceSelector] = useState(false);
+  const mobileInfo = useMobileEnhanced();
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+  const wordsContainerRef = useRef<HTMLDivElement | null>(null);
+  const { toast } = useToast();
 
   // Load available voices on component mount
   useEffect(() => {
     // Load profiles from localStorage
-    const savedProfiles = localStorage.getItem('voiceProfiles')
+    const savedProfiles = localStorage.getItem("voiceProfiles");
     if (savedProfiles) {
       try {
-        setVoiceProfiles(JSON.parse(savedProfiles))
+        setVoiceProfiles(JSON.parse(savedProfiles));
       } catch (error) {
-        console.error('Failed to load voice profiles:', error)
+        console.error("Failed to load voice profiles:", error);
       }
     }
-    
+
     // Load settings from localStorage
-    const savedSettings = localStorage.getItem('voiceSettings')
+    const savedSettings = localStorage.getItem("voiceSettings");
     if (savedSettings) {
       try {
-        setVoiceSettings(JSON.parse(savedSettings))
+        setVoiceSettings(JSON.parse(savedSettings));
       } catch (error) {
-        console.error('Failed to load voice settings:', error)
+        console.error("Failed to load voice settings:", error);
       }
     }
 
     // Fetch project info
-    fetchProjectInfo()
+    fetchProjectInfo();
 
-    if ('speechSynthesis' in window) {
+    if ("speechSynthesis" in window) {
       const loadVoices = () => {
-        const systemVoices = speechSynthesis.getVoices()
-        setAvailableVoices(systemVoices)
-        
+        const systemVoices = speechSynthesis.getVoices();
+        setAvailableVoices(systemVoices);
+
         // Convert system voices to our Voice interface
-        const convertedBrowserVoices: Voice[] = systemVoices.map((voice, index) => {
-          // Determine gender from voice name
-          const name = voice.name.toLowerCase()
-          let gender = 'Unknown'
-          
-          if (name.includes('female') || name.includes('woman') || name.includes('girl') || 
-              name.includes('samantha') || name.includes('karen') || name.includes('zira') || 
-              name.includes('susan') || name.includes('ava') || name.includes('emma')) {
-            gender = 'Female'
-          } else if (name.includes('male') || name.includes('man') || name.includes('boy') || 
-                     name.includes('alex') || name.includes('david') || name.includes('daniel') || 
-                     name.includes('james') || name.includes('oliver')) {
-            gender = 'Male'
+        const convertedBrowserVoices: Voice[] = systemVoices.map(
+          (voice, index) => {
+            // Determine gender from voice name
+            const name = voice.name.toLowerCase();
+            let gender = "Unknown";
+
+            if (
+              name.includes("female") ||
+              name.includes("woman") ||
+              name.includes("girl") ||
+              name.includes("samantha") ||
+              name.includes("karen") ||
+              name.includes("zira") ||
+              name.includes("susan") ||
+              name.includes("ava") ||
+              name.includes("emma")
+            ) {
+              gender = "Female";
+            } else if (
+              name.includes("male") ||
+              name.includes("man") ||
+              name.includes("boy") ||
+              name.includes("alex") ||
+              name.includes("david") ||
+              name.includes("daniel") ||
+              name.includes("james") ||
+              name.includes("oliver")
+            ) {
+              gender = "Male";
+            }
+
+            return {
+              id: `browser-${index}`,
+              name: voice.name,
+              language: voice.lang,
+              gender,
+              source: "browser" as const,
+              isDefault: voice.default,
+              voiceURI: voice.voiceURI,
+            };
           }
-          
-          return {
-            id: `browser-${index}`,
-            name: voice.name,
-            language: voice.lang,
-            gender,
-            source: 'browser' as const,
-            isDefault: voice.default,
-            voiceURI: voice.voiceURI
-          }
-        })
-        
+        );
+
         // Filter for English voices and sort by quality
         const englishBrowserVoices = convertedBrowserVoices
-          .filter(voice => voice.language.startsWith('en'))
+          .filter((voice) => voice.language.startsWith("en"))
           .sort((a, b) => {
             // Prioritize local voices and common quality indicators
-            const aScore = (a.isDefault ? 2 : 0) + 
-                           (a.name.includes('premium') || a.name.includes('enhanced') ? 1 : 0) +
-                           (a.voiceURI?.includes('local') ? 1 : 0)
-            const bScore = (b.isDefault ? 2 : 0) + 
-                           (b.name.includes('premium') || b.name.includes('enhanced') ? 1 : 0) +
-                           (b.voiceURI?.includes('local') ? 1 : 0)
-            return bScore - aScore
-          })
-        
-        setBrowserVoices(englishBrowserVoices)
-        
+            const aScore =
+              (a.isDefault ? 2 : 0) +
+              (a.name.includes("premium") || a.name.includes("enhanced")
+                ? 1
+                : 0) +
+              (a.voiceURI?.includes("local") ? 1 : 0);
+            const bScore =
+              (b.isDefault ? 2 : 0) +
+              (b.name.includes("premium") || b.name.includes("enhanced")
+                ? 1
+                : 0) +
+              (b.voiceURI?.includes("local") ? 1 : 0);
+            return bScore - aScore;
+          });
+
+        setBrowserVoices(englishBrowserVoices);
+
         // Combine all voices
-        const combinedVoices = [
-          ...englishBrowserVoices,
-          ...fallbackVoices
-        ]
-        setAllVoices(combinedVoices)
-        
+        const combinedVoices = [...englishBrowserVoices, ...fallbackVoices];
+        setAllVoices(combinedVoices);
+
         // Set default voice to first available browser voice
         if (combinedVoices.length > 0 && !selectedVoice) {
-          setSelectedVoice(combinedVoices[0].id)
+          setSelectedVoice(combinedVoices[0].id);
         }
-        
-        setVoicesLoaded(true)
-        console.log(`Loaded ${englishBrowserVoices.length} browser voices and ${fallbackVoices.length} online voices`)
-      }
+
+        setVoicesLoaded(true);
+        console.log(
+          `Loaded ${englishBrowserVoices.length} browser voices and ${fallbackVoices.length} online voices`
+        );
+      };
 
       // Load voices immediately if available
       if (speechSynthesis.getVoices().length > 0) {
-        loadVoices()
+        loadVoices();
       } else {
         // Wait for voices to be loaded
-        speechSynthesis.onvoiceschanged = loadVoices
+        speechSynthesis.onvoiceschanged = loadVoices;
       }
 
       return () => {
-        speechSynthesis.onvoiceschanged = null
-      }
+        speechSynthesis.onvoiceschanged = null;
+      };
     }
-  }, [selectedVoice])
+  }, [selectedVoice]);
 
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       // Only handle shortcuts when not typing in input fields
-      if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) {
-        return
+      if (
+        event.target instanceof HTMLInputElement ||
+        event.target instanceof HTMLTextAreaElement
+      ) {
+        return;
       }
 
       // Ctrl/Cmd + Space: Play/Pause
-      if ((event.ctrlKey || event.metaKey) && event.code === 'Space') {
-        event.preventDefault()
+      if ((event.ctrlKey || event.metaKey) && event.code === "Space") {
+        event.preventDefault();
         if (isPlaying) {
           if (isPaused) {
-            resumeSpeech()
+            resumeSpeech();
           } else {
-            pauseSpeech()
+            pauseSpeech();
           }
         } else {
-          generateSpeech()
+          generateSpeech();
         }
       }
 
       // Ctrl/Cmd + S: Stop
-      if ((event.ctrlKey || event.metaKey) && event.code === 'KeyS') {
-        event.preventDefault()
-        stopSpeech()
+      if ((event.ctrlKey || event.metaKey) && event.code === "KeyS") {
+        event.preventDefault();
+        stopSpeech();
       }
 
       // Ctrl/Cmd + D: Download
-      if ((event.ctrlKey || event.metaKey) && event.code === 'KeyD') {
-        event.preventDefault()
+      if ((event.ctrlKey || event.metaKey) && event.code === "KeyD") {
+        event.preventDefault();
         if (audioUrl) {
-          downloadAudio()
+          downloadAudio();
         }
       }
 
       // Ctrl/Cmd + K: Toggle voice controls
-      if ((event.ctrlKey || event.metaKey) && event.code === 'KeyK') {
-        event.preventDefault()
-        setShowVoiceControls(!showVoiceControls)
+      if ((event.ctrlKey || event.metaKey) && event.code === "KeyK") {
+        event.preventDefault();
+        setShowVoiceControls(!showVoiceControls);
       }
 
       // Ctrl/Cmd + P: Toggle podcast mode
-      if ((event.ctrlKey || event.metaKey) && event.code === 'KeyP') {
-        event.preventDefault()
-        setIsPodcastMode(!isPodcastMode)
+      if ((event.ctrlKey || event.metaKey) && event.code === "KeyP") {
+        event.preventDefault();
+        setIsPodcastMode(!isPodcastMode);
       }
-    }
+    };
 
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [isPlaying, isPaused, audioUrl, showVoiceControls, isPodcastMode])
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isPlaying, isPaused, audioUrl, showVoiceControls, isPodcastMode]);
 
   // Save voice settings to localStorage
   useEffect(() => {
-    localStorage.setItem('voiceSettings', JSON.stringify(voiceSettings))
-  }, [voiceSettings])
+    localStorage.setItem("voiceSettings", JSON.stringify(voiceSettings));
+  }, [voiceSettings]);
 
   // Extract words from text for highlighting
   useEffect(() => {
     if (text) {
-      const wordArray = text.match(/\S+/g) || []
-      setWords(wordArray)
+      const wordArray = text.match(/\S+/g) || [];
+      setWords(wordArray);
     } else {
-      setWords([])
+      setWords([]);
     }
-    setCurrentWordIndex(-1)
-  }, [text])
+    setCurrentWordIndex(-1);
+  }, [text]);
 
   // Handle speech synthesis events for highlighting
   useEffect(() => {
-    if ('speechSynthesis' in window) {
+    if ("speechSynthesis" in window) {
       const handleSpeechEnd = () => {
-        setIsPlaying(false)
-        setIsPaused(false)
-        setCurrentWordIndex(-1)
-        setProgress(100)
-      }
+        setIsPlaying(false);
+        setIsPaused(false);
+        setCurrentWordIndex(-1);
+        setProgress(100);
+      };
 
-      speechSynthesis.addEventListener('end', handleSpeechEnd)
+      speechSynthesis.addEventListener("end", handleSpeechEnd);
       return () => {
-        speechSynthesis.removeEventListener('end', handleSpeechEnd)
-      }
+        speechSynthesis.removeEventListener("end", handleSpeechEnd);
+      };
     }
-  }, [])
+  }, []);
 
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (!file) return
+  // Auto-scroll highlighted word into view when currentWordIndex changes
+  useEffect(() => {
+    if (!wordsContainerRef.current) return;
+    if (!isPlaying) return;
+
+    const activeEl = document.getElementById(`word-${currentWordIndex}`);
+    if (activeEl) {
+      // Scroll the container so the active word is visible
+      activeEl.scrollIntoView({
+        behavior: "smooth",
+        block: "nearest",
+        inline: "nearest",
+      });
+    }
+  }, [currentWordIndex, isPlaying]);
+
+  const handleFileUpload = async (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
 
     // Check file size (limit to 10MB)
-    const maxSize = 10 * 1024 * 1024 // 10MB
+    const maxSize = 10 * 1024 * 1024; // 10MB
     if (file.size > maxSize) {
       toast({
         title: "File too large",
         description: "Please upload a file smaller than 10MB.",
         variant: "destructive",
-      })
-      return
+      });
+      return;
     }
 
     // Focus on text files primarily, with experimental support for other formats
-    const allowedTypes = ['text/plain', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']
-    
+    const allowedTypes = [
+      "text/plain",
+      "application/pdf",
+      "application/msword",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    ];
+
     if (!allowedTypes.includes(file.type)) {
       toast({
         title: "Invalid file type",
         description: `File type ${file.type} is not supported. Please upload a text file (.txt) for best results.`,
         variant: "destructive",
-      })
-      return
+      });
+      return;
     }
 
     // Warn users about non-text files
-    if (file.type !== 'text/plain') {
+    if (file.type !== "text/plain") {
       toast({
         title: "Experimental file support",
-        description: "Text files work best. PDF and Word files have limited support and may not extract text correctly.",
+        description:
+          "Text files work best. PDF and Word files have limited support and may not extract text correctly.",
         variant: "default",
-      })
+      });
     }
 
-    setIsProcessing(true)
-    setUploadedFileName(file.name)
+    setIsProcessing(true);
+    setUploadedFileName(file.name);
 
     try {
-      const formData = new FormData()
-      formData.append('file', file)
+      const formData = new FormData();
+      formData.append("file", file);
 
-      console.log('Uploading file:', file.name, 'Size:', file.size, 'Type:', file.type)
+      console.log(
+        "Uploading file:",
+        file.name,
+        "Size:",
+        file.size,
+        "Type:",
+        file.type
+      );
 
-      const response = await fetch('/api/upload', {
-        method: 'POST',
+      const response = await fetch("/api/upload", {
+        method: "POST",
         body: formData,
-      })
+      });
 
-      const result = await response.json()
-      console.log('Upload response:', result)
+      const result = await response.json();
+      console.log("Upload response:", result);
 
       if (!response.ok) {
-        throw new Error(result.error || 'Failed to process file')
+        throw new Error(result.error || "Failed to process file");
       }
 
       if (!result.extractedText || result.extractedText.trim().length === 0) {
-        throw new Error('No text could be extracted from the file')
+        throw new Error("No text could be extracted from the file");
       }
 
-      setText(result.extractedText)
-      
+      setText(result.extractedText);
+
       toast({
         title: "File uploaded successfully",
         description: `Extracted ${result.extractedText.length} characters from ${file.name}`,
-      })
+      });
     } catch (error) {
-      console.error('Upload error:', error)
+      console.error("Upload error:", error);
       toast({
         title: "Upload failed",
-        description: error instanceof Error ? error.message : "Failed to process the file. Please try again.",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Failed to process the file. Please try again.",
         variant: "destructive",
-      })
+      });
       // Clear the file input
       if (fileInputRef.current) {
-        fileInputRef.current.value = ''
+        fileInputRef.current.value = "";
       }
-      setUploadedFileName('')
+      setUploadedFileName("");
     } finally {
-      setIsProcessing(false)
+      setIsProcessing(false);
     }
-  }
+  };
 
   const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault()
-    setIsDragging(true)
-  }
+    e.preventDefault();
+    setIsDragging(true);
+  };
 
   const handleDragLeave = (e: React.DragEvent) => {
-    e.preventDefault()
-    setIsDragging(false)
-  }
+    e.preventDefault();
+    setIsDragging(false);
+  };
 
   const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault()
-    setIsDragging(false)
-    
-    const files = e.dataTransfer.files
+    e.preventDefault();
+    setIsDragging(false);
+
+    const files = e.dataTransfer.files;
     if (files.length > 0) {
-      const file = files[0]
+      const file = files[0];
       // Create a synthetic event to reuse the existing handler
       const syntheticEvent = {
-        target: { files: [file] }
-      } as React.ChangeEvent<HTMLInputElement>
-      handleFileUpload(syntheticEvent)
+        target: { files: [file] },
+      } as React.ChangeEvent<HTMLInputElement>;
+      handleFileUpload(syntheticEvent);
     }
-  }
+  };
 
   const previewVoice = async () => {
-    if (!selectedVoice) return
-    
-    const currentVoice = allVoices.find(v => v.id === selectedVoice)
-    if (!currentVoice) return
-    
-    const previewText = `Hello, this is ${currentVoice.name} speaking. I am a ${currentVoice.gender} voice from ${currentVoice.language}.`
-    
+    if (!selectedVoice) return;
+
+    const currentVoice = allVoices.find((v) => v.id === selectedVoice);
+    if (!currentVoice) return;
+
+    const previewText = `Hello, this is ${currentVoice.name} speaking. I am a ${currentVoice.gender} voice from ${currentVoice.language}.`;
+
     try {
-      if (currentVoice.source === 'browser' || currentVoice.source === 'local') {
-        await generateBrowserSpeech(previewText, currentVoice)
+      if (
+        currentVoice.source === "browser" ||
+        currentVoice.source === "local"
+      ) {
+        await generateBrowserSpeech(previewText, currentVoice);
       } else {
-        await generateOnlineSpeech(previewText, currentVoice)
+        await generateOnlineSpeech(previewText, currentVoice);
       }
     } catch (error) {
       toast({
         title: "Preview failed",
         description: "Could not preview this voice.",
         variant: "destructive",
-      })
+      });
     }
-  }
+  };
 
   const generateSpeech = async () => {
     if (!text.trim()) {
@@ -432,379 +564,423 @@ export default function TTSApp() {
         title: "No text provided",
         description: "Please enter some text or upload a file.",
         variant: "destructive",
-      })
-      return
+      });
+      return;
     }
 
-    setIsProcessing(true)
-    setProgress(0)
+    setIsProcessing(true);
+    setProgress(0);
 
     try {
-      const selectedVoiceObj = allVoices.find(v => v.id === selectedVoice)
-      
-      if (selectedVoiceObj?.source === 'browser' || selectedVoiceObj?.source === 'local') {
+      const selectedVoiceObj = allVoices.find((v) => v.id === selectedVoice);
+
+      if (
+        selectedVoiceObj?.source === "browser" ||
+        selectedVoiceObj?.source === "local"
+      ) {
         // Use Web Speech API for browser/local voices
-        await generateBrowserSpeech(text, selectedVoiceObj)
+        await generateBrowserSpeech(text, selectedVoiceObj);
       } else {
         // Use online TTS API
-        await generateOnlineSpeech(text, selectedVoiceObj)
+        await generateOnlineSpeech(text, selectedVoiceObj);
       }
     } catch (error) {
       toast({
         title: "Speech generation failed",
         description: "Failed to generate speech. Please try again.",
         variant: "destructive",
-      })
+      });
     } finally {
-      setIsProcessing(false)
-      setProgress(0)
+      setIsProcessing(false);
+      setProgress(0);
     }
-  }
+  };
 
   const generateBrowserSpeech = async (textToSpeak: string, voice: Voice) => {
-    if ('speechSynthesis' in window) {
+    if ("speechSynthesis" in window) {
       // Cancel any ongoing speech
-      speechSynthesis.cancel()
-      
+      speechSynthesis.cancel();
+
       // Wait for voices to be loaded if not already
       if (!voicesLoaded || availableVoices.length === 0) {
         await new Promise((resolve) => {
           const checkVoices = () => {
             if (speechSynthesis.getVoices().length > 0) {
-              setAvailableVoices(speechSynthesis.getVoices())
-              setVoicesLoaded(true)
-              resolve(true)
+              setAvailableVoices(speechSynthesis.getVoices());
+              setVoicesLoaded(true);
+              resolve(true);
             } else {
-              setTimeout(checkVoices, 100)
+              setTimeout(checkVoices, 100);
             }
-          }
-          checkVoices()
-        })
+          };
+          checkVoices();
+        });
       }
 
-      const utterance = new SpeechSynthesisUtterance(textToSpeak)
-      utterance.rate = voiceSettings.rate
-      utterance.pitch = voiceSettings.pitch
-      utterance.volume = voiceSettings.volume
+      const utterance = new SpeechSynthesisUtterance(textToSpeak);
+      utterance.rate = voiceSettings.rate;
+      utterance.pitch = voiceSettings.pitch;
+      utterance.volume = voiceSettings.volume;
 
       // For browser voices, find the exact matching system voice
-      if (voice.source === 'browser') {
-        const systemVoice = availableVoices.find(sv => sv.voiceURI === voice.voiceURI)
+      if (voice.source === "browser") {
+        const systemVoice = availableVoices.find(
+          (sv) => sv.voiceURI === voice.voiceURI
+        );
         if (systemVoice) {
-          utterance.voice = systemVoice
-          console.log(`✅ Using browser voice: ${systemVoice.name} (${systemVoice.lang})`)
+          utterance.voice = systemVoice;
+          console.log(
+            `✅ Using browser voice: ${systemVoice.name} (${systemVoice.lang})`
+          );
         } else {
           // Fallback to first available voice with same language
-          const fallbackVoice = availableVoices.find(sv => sv.lang === voice.language)
+          const fallbackVoice = availableVoices.find(
+            (sv) => sv.lang === voice.language
+          );
           if (fallbackVoice) {
-            utterance.voice = fallbackVoice
-            console.log(`⚠️ Using fallback voice: ${fallbackVoice.name}`)
+            utterance.voice = fallbackVoice;
+            console.log(`⚠️ Using fallback voice: ${fallbackVoice.name}`);
           }
         }
       } else {
         // Legacy local voice handling
-        const currentVoices = speechSynthesis.getVoices()
-        console.log('Available system voices:', currentVoices.map(v => `${v.name} (${v.lang}) - ${v.local ? 'Local' : 'Remote'}`))
-        console.log(`Looking for voice: ${voice.name} (${voice.gender}, ${voice.language})`)
-        
-        let matchingVoice = null
-        
+        const currentVoices = speechSynthesis.getVoices();
+        console.log(
+          "Available system voices:",
+          currentVoices.map(
+            (v) => `${v.name} (${v.lang}) - ${v.local ? "Local" : "Remote"}`
+          )
+        );
+        console.log(
+          `Looking for voice: ${voice.name} (${voice.gender}, ${voice.language})`
+        );
+
+        let matchingVoice = null;
+
         // Priority 1: Exact name match
-        matchingVoice = currentVoices.find(v => 
-          v.name.toLowerCase() === voice.name.toLowerCase()
-        )
-        
+        matchingVoice = currentVoices.find(
+          (v) => v.name.toLowerCase() === voice.name.toLowerCase()
+        );
+
         if (matchingVoice) {
-          console.log(`Found exact match: ${matchingVoice.name}`)
+          console.log(`Found exact match: ${matchingVoice.name}`);
         } else {
           // Priority 2: Partial name match
-          matchingVoice = currentVoices.find(v => 
-            v.name.toLowerCase().includes(voice.name.toLowerCase()) ||
-            voice.name.toLowerCase().includes(v.name.toLowerCase())
-          )
-          
+          matchingVoice = currentVoices.find(
+            (v) =>
+              v.name.toLowerCase().includes(voice.name.toLowerCase()) ||
+              voice.name.toLowerCase().includes(v.name.toLowerCase())
+          );
+
           if (matchingVoice) {
-            console.log(`Found partial match: ${matchingVoice.name}`)
+            console.log(`Found partial match: ${matchingVoice.name}`);
           }
         }
-        
+
         if (!matchingVoice) {
           // Priority 3: Language + Gender match with common voice patterns
-          const langCode = voice.language.split('-')[0]
-          
+          const langCode = voice.language.split("-")[0];
+
           // Define gender-specific keywords
-          const femaleKeywords = ['female', 'woman', 'girl', 'samantha', 'karen', 'zira', 'susan', 'karen']
-          const maleKeywords = ['male', 'man', 'boy', 'alex', 'david', 'daniel', 'james', 'oliver']
-          
-          matchingVoice = currentVoices.find(v => {
-            const voiceName = v.name.toLowerCase()
-            const voiceLang = v.lang.toLowerCase()
-            
+          const femaleKeywords = [
+            "female",
+            "woman",
+            "girl",
+            "samantha",
+            "karen",
+            "zira",
+            "susan",
+            "karen",
+          ];
+          const maleKeywords = [
+            "male",
+            "man",
+            "boy",
+            "alex",
+            "david",
+            "daniel",
+            "james",
+            "oliver",
+          ];
+
+          matchingVoice = currentVoices.find((v) => {
+            const voiceName = v.name.toLowerCase();
+            const voiceLang = v.lang.toLowerCase();
+
             // Check language match
-            const langMatch = voiceLang.includes(langCode)
-            
+            const langMatch = voiceLang.includes(langCode);
+
             // Check gender match
-            let genderMatch = false
-            if (voice.gender === 'Female') {
-              genderMatch = femaleKeywords.some(keyword => voiceName.includes(keyword))
+            let genderMatch = false;
+            if (voice.gender === "Female") {
+              genderMatch = femaleKeywords.some((keyword) =>
+                voiceName.includes(keyword)
+              );
             } else {
-              genderMatch = maleKeywords.some(keyword => voiceName.includes(keyword))
+              genderMatch = maleKeywords.some((keyword) =>
+                voiceName.includes(keyword)
+              );
             }
-            
-            return langMatch && genderMatch
-          })
-          
+
+            return langMatch && genderMatch;
+          });
+
           if (matchingVoice) {
-            console.log(`Found language+gender match: ${matchingVoice.name}`)
+            console.log(`Found language+gender match: ${matchingVoice.name}`);
           }
         }
-        
+
         if (!matchingVoice) {
           // Priority 4: Language match only
-          const langCode = voice.language.split('-')[0]
-          matchingVoice = currentVoices.find(v => 
+          const langCode = voice.language.split("-")[0];
+          matchingVoice = currentVoices.find((v) =>
             v.lang.toLowerCase().includes(langCode)
-          )
-          
+          );
+
           if (matchingVoice) {
-            console.log(`Found language match: ${matchingVoice.name}`)
+            console.log(`Found language match: ${matchingVoice.name}`);
           }
         }
-        
+
         if (!matchingVoice) {
           // Priority 5: Any English voice
-          matchingVoice = currentVoices.find(v => 
-            v.lang.toLowerCase().includes('en')
-          )
-          
+          matchingVoice = currentVoices.find((v) =>
+            v.lang.toLowerCase().includes("en")
+          );
+
           if (matchingVoice) {
-            console.log(`Found English voice: ${matchingVoice.name}`)
+            console.log(`Found English voice: ${matchingVoice.name}`);
           }
         }
-        
+
         if (!matchingVoice) {
           // Priority 6: First available voice
-          matchingVoice = currentVoices[0]
-          console.log(`Using first available voice: ${matchingVoice.name}`)
+          matchingVoice = currentVoices[0];
+          console.log(`Using first available voice: ${matchingVoice.name}`);
         }
-        
+
         if (matchingVoice) {
-          utterance.voice = matchingVoice
-          console.log(`✅ Using voice: ${matchingVoice.name} (${matchingVoice.lang}) for ${voice.name} (${voice.gender})`)
+          utterance.voice = matchingVoice;
+          console.log(
+            `✅ Using voice: ${matchingVoice.name} (${matchingVoice.lang}) for ${voice.name} (${voice.gender})`
+          );
         } else {
-          console.warn('❌ No matching voice found, using default')
+          console.warn("❌ No matching voice found, using default");
         }
       }
 
       utterance.onstart = () => {
-        setIsPlaying(true)
-        setProgress(10)
-      }
+        setIsPlaying(true);
+        setProgress(10);
+      };
 
       utterance.onboundary = (event) => {
         // Update progress based on word boundaries
-        const progressPercent = Math.min((event.charIndex / textToSpeak.length) * 100, 90)
-        setProgress(progressPercent)
-        
+        const progressPercent = Math.min(
+          (event.charIndex / textToSpeak.length) * 100,
+          90
+        );
+        setProgress(progressPercent);
+
         // Update current word for highlighting
-        if (event.name === 'word') {
-          const textBefore = textToSpeak.substring(0, event.charIndex)
-          const wordCount = (textBefore.match(/\S+/g) || []).length
-          setCurrentWordIndex(wordCount)
+        if (event.name === "word") {
+          const textBefore = textToSpeak.substring(0, event.charIndex);
+          const wordCount = (textBefore.match(/\S+/g) || []).length;
+          setCurrentWordIndex(wordCount);
         }
-      }
+      };
 
       utterance.onend = () => {
-        setIsPlaying(false)
-        setIsPaused(false)
-        setCurrentWordIndex(-1)
-        setProgress(100)
-        utteranceRef.current = null
+        setIsPlaying(false);
+        setIsPaused(false);
+        setCurrentWordIndex(-1);
+        setProgress(100);
+        utteranceRef.current = null;
         toast({
           title: "Speech completed",
           description: `Text read using ${voice.name}.`,
-        })
-      }
+        });
+      };
 
       utterance.onerror = (event) => {
-        setIsPlaying(false)
-        setProgress(0)
-        console.error('Speech synthesis error:', event)
-        throw new Error(`Speech synthesis failed: ${event.error}`)
-      }
+        setIsPlaying(false);
+        setProgress(0);
+        console.error("Speech synthesis error:", event);
+        throw new Error(`Speech synthesis failed: ${event.error}`);
+      };
 
-      utteranceRef.current = utterance
-      speechSynthesis.speak(utterance)
+      utteranceRef.current = utterance;
+      speechSynthesis.speak(utterance);
     } else {
-      throw new Error('Speech synthesis is not supported in your browser')
+      throw new Error("Speech synthesis is not supported in your browser");
     }
-  }
+  };
 
   const generateOnlineSpeech = async (textToSpeak: string, voice: Voice) => {
-    console.log(`Generating online speech for ${voice.name}`)
-    
-    const response = await fetch('/api/tts', {
-      method: 'POST',
+    console.log(`Generating online speech for ${voice.name}`);
+
+    const response = await fetch("/api/tts", {
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({
         text: textToSpeak,
         voiceId: voice.id,
         voiceName: voice.name,
       }),
-    })
+    });
 
     if (!response.ok) {
-      const errorData = await response.json()
-      throw new Error(errorData.error || 'Failed to generate speech')
+      const errorData = await response.json();
+      throw new Error(errorData.error || "Failed to generate speech");
     }
 
-    const blob = await response.blob()
-    const url = URL.createObjectURL(blob)
-    setAudioUrl(url)
-    setProgress(100)
-    
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    setAudioUrl(url);
+    setProgress(100);
+
     toast({
       title: "Speech generated successfully",
       description: `Audio generated using ${voice.name}. Click play to listen.`,
-    })
-  }
+    });
+  };
 
   const stopSpeech = () => {
-    if ('speechSynthesis' in window) {
-      speechSynthesis.cancel()
-      utteranceRef.current = null
+    if ("speechSynthesis" in window) {
+      speechSynthesis.cancel();
+      utteranceRef.current = null;
     }
     if (audioRef.current) {
-      audioRef.current.pause()
-      audioRef.current.currentTime = 0
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
     }
-    setIsPlaying(false)
-    setIsPaused(false)
-    setCurrentWordIndex(-1)
-    setProgress(0)
-  }
+    setIsPlaying(false);
+    setIsPaused(false);
+    setCurrentWordIndex(-1);
+    setProgress(0);
+  };
 
   const pauseSpeech = () => {
-    if ('speechSynthesis' in window && isPlaying && !isPaused) {
-      speechSynthesis.pause()
-      setIsPaused(true)
+    if ("speechSynthesis" in window && isPlaying && !isPaused) {
+      speechSynthesis.pause();
+      setIsPaused(true);
     }
-  }
+  };
 
   const resumeSpeech = () => {
-    if ('speechSynthesis' in window && isPlaying && isPaused) {
-      speechSynthesis.resume()
-      setIsPaused(false)
+    if ("speechSynthesis" in window && isPlaying && isPaused) {
+      speechSynthesis.resume();
+      setIsPaused(false);
     }
-  }
+  };
 
   const togglePauseResume = () => {
     if (isPaused) {
-      resumeSpeech()
+      resumeSpeech();
     } else {
-      pauseSpeech()
+      pauseSpeech();
     }
-  }
+  };
 
   const togglePlayback = () => {
     if (audioRef.current) {
       if (isPlaying) {
-        audioRef.current.pause()
+        audioRef.current.pause();
       } else {
-        audioRef.current.play()
+        audioRef.current.play();
       }
     }
-  }
+  };
 
   const clearAll = () => {
-    stopSpeech()
-    setText('')
-    setAudioUrl(null)
-    setUploadedFileName('')
-    setProgress(0)
-    setCurrentWordIndex(-1)
-    setIsPaused(false)
-    setWords([])
-    setPodcastSegments([])
-    setCurrentSegmentIndex(0)
+    stopSpeech();
+    setText("");
+    setAudioUrl(null);
+    setUploadedFileName("");
+    setProgress(0);
+    setCurrentWordIndex(-1);
+    setIsPaused(false);
+    setWords([]);
+    setPodcastSegments([]);
+    setCurrentSegmentIndex(0);
     if (fileInputRef.current) {
-      fileInputRef.current.value = ''
+      fileInputRef.current.value = "";
     }
     toast({
       title: "Cleared",
       description: "All content has been cleared.",
-    })
-  }
+    });
+  };
 
   // Voice Profile Functions
   const saveVoiceProfile = () => {
-    const currentVoice = allVoices.find(v => v.id === selectedVoice)
-    if (!currentVoice) return
+    const currentVoice = allVoices.find((v) => v.id === selectedVoice);
+    if (!currentVoice) return;
 
     const newProfile: VoiceProfile = {
       id: `profile-${Date.now()}`,
       name: `${currentVoice.name} Profile`,
       settings: { ...voiceSettings },
       voiceId: selectedVoice,
-      createdAt: new Date()
-    }
+      createdAt: new Date(),
+    };
 
-    const updatedProfiles = [...voiceProfiles, newProfile]
-    setVoiceProfiles(updatedProfiles)
-    localStorage.setItem('voiceProfiles', JSON.stringify(updatedProfiles))
-    
+    const updatedProfiles = [...voiceProfiles, newProfile];
+    setVoiceProfiles(updatedProfiles);
+    localStorage.setItem("voiceProfiles", JSON.stringify(updatedProfiles));
+
     toast({
       title: "Profile saved",
       description: `Voice profile for ${currentVoice.name} has been saved.`,
-    })
-  }
+    });
+  };
 
   const loadVoiceProfile = (profile: VoiceProfile) => {
-    setSelectedVoice(profile.voiceId)
-    setVoiceSettings(profile.settings)
+    setSelectedVoice(profile.voiceId);
+    setVoiceSettings(profile.settings);
     toast({
       title: "Profile loaded",
       description: `Loaded ${profile.name}`,
-    })
-  }
+    });
+  };
 
   const deleteVoiceProfile = (profileId: string) => {
-    const updatedProfiles = voiceProfiles.filter(p => p.id !== profileId)
-    setVoiceProfiles(updatedProfiles)
-    localStorage.setItem('voiceProfiles', JSON.stringify(updatedProfiles))
+    const updatedProfiles = voiceProfiles.filter((p) => p.id !== profileId);
+    setVoiceProfiles(updatedProfiles);
+    localStorage.setItem("voiceProfiles", JSON.stringify(updatedProfiles));
     toast({
       title: "Profile deleted",
       description: "Voice profile has been removed.",
-    })
-  }
+    });
+  };
 
   // Podcast Mode Functions
   const addPodcastSegment = () => {
-    if (!text.trim()) return
+    if (!text.trim()) return;
 
-    const currentVoice = allVoices.find(v => v.id === selectedVoice)
-    if (!currentVoice) return
+    const currentVoice = allVoices.find((v) => v.id === selectedVoice);
+    if (!currentVoice) return;
 
     const newSegment: PodcastSegment = {
       id: `segment-${Date.now()}`,
       voiceId: selectedVoice,
       text: text.trim(),
-      voice: currentVoice
-    }
+      voice: currentVoice,
+    };
 
-    setPodcastSegments([...podcastSegments, newSegment])
-    setText('')
+    setPodcastSegments([...podcastSegments, newSegment]);
+    setText("");
     toast({
       title: "Segment added",
       description: `Added segment with ${currentVoice.name}`,
-    })
-  }
+    });
+  };
 
   const removePodcastSegment = (segmentId: string) => {
-    setPodcastSegments(podcastSegments.filter(s => s.id !== segmentId))
-  }
+    setPodcastSegments(podcastSegments.filter((s) => s.id !== segmentId));
+  };
 
   const playPodcast = async () => {
     if (podcastSegments.length === 0) {
@@ -812,41 +988,44 @@ export default function TTSApp() {
         title: "No segments",
         description: "Add some segments to create a podcast.",
         variant: "destructive",
-      })
-      return
+      });
+      return;
     }
 
-    setIsProcessing(true)
-    setCurrentSegmentIndex(0)
+    setIsProcessing(true);
+    setCurrentSegmentIndex(0);
 
     try {
       for (let i = 0; i < podcastSegments.length; i++) {
-        const segment = podcastSegments[i]
-        setCurrentSegmentIndex(i)
-        
-        const segmentVoice = allVoices.find(v => v.id === segment.voiceId)
+        const segment = podcastSegments[i];
+        setCurrentSegmentIndex(i);
+
+        const segmentVoice = allVoices.find((v) => v.id === segment.voiceId);
         if (segmentVoice) {
-          if (segmentVoice.source === 'browser' || segmentVoice.source === 'local') {
-            await generateBrowserSpeech(segment.text, segmentVoice)
+          if (
+            segmentVoice.source === "browser" ||
+            segmentVoice.source === "local"
+          ) {
+            await generateBrowserSpeech(segment.text, segmentVoice);
           } else {
-            await generateOnlineSpeech(segment.text, segmentVoice)
+            await generateOnlineSpeech(segment.text, segmentVoice);
           }
         }
-        
+
         // Small pause between segments
-        await new Promise(resolve => setTimeout(resolve, 500))
+        await new Promise((resolve) => setTimeout(resolve, 500));
       }
     } catch (error) {
       toast({
         title: "Podcast playback failed",
         description: "Failed to play podcast segments.",
         variant: "destructive",
-      })
+      });
     } finally {
-      setIsProcessing(false)
-      setCurrentSegmentIndex(0)
+      setIsProcessing(false);
+      setCurrentSegmentIndex(0);
     }
-  }
+  };
 
   // Enhanced Download Functions
   const downloadVoiceSettings = () => {
@@ -854,138 +1033,140 @@ export default function TTSApp() {
       voiceSettings,
       selectedVoice,
       timestamp: new Date().toISOString(),
-      version: '1.0'
-    }
-    
-    const blob = new Blob([JSON.stringify(settingsData, null, 2)], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `voice-settings-${Date.now()}.json`
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    URL.revokeObjectURL(url)
-    
+      version: "1.0",
+    };
+
+    const blob = new Blob([JSON.stringify(settingsData, null, 2)], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `voice-settings-${Date.now()}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
     toast({
       title: "Settings downloaded",
       description: "Voice settings have been exported.",
-    })
-  }
+    });
+  };
 
   const uploadVoiceSettings = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (!file) return
+    const file = event.target.files?.[0];
+    if (!file) return;
 
-    const reader = new FileReader()
+    const reader = new FileReader();
     reader.onload = (e) => {
       try {
-        const settingsData = JSON.parse(e.target?.result as string)
+        const settingsData = JSON.parse(e.target?.result as string);
         if (settingsData.voiceSettings) {
-          setVoiceSettings(settingsData.voiceSettings)
+          setVoiceSettings(settingsData.voiceSettings);
         }
         if (settingsData.selectedVoice) {
-          setSelectedVoice(settingsData.selectedVoice)
+          setSelectedVoice(settingsData.selectedVoice);
         }
         toast({
           title: "Settings imported",
           description: "Voice settings have been loaded.",
-        })
+        });
       } catch (error) {
         toast({
           title: "Import failed",
           description: "Invalid settings file.",
           variant: "destructive",
-        })
+        });
       }
-    }
-    reader.readAsText(file)
-  }
+    };
+    reader.readAsText(file);
+  };
 
   // Mobile-specific functions
   const shareAudio = async () => {
-    if (!audioUrl) return
+    if (!audioUrl) return;
 
     if (navigator.share && mobileInfo.isMobile) {
       try {
-        const response = await fetch(audioUrl)
-        const blob = await response.blob()
-        const file = new File([blob], 'tts-audio.mp3', { type: 'audio/mpeg' })
-        
+        const response = await fetch(audioUrl);
+        const blob = await response.blob();
+        const file = new File([blob], "tts-audio.mp3", { type: "audio/mpeg" });
+
         await navigator.share({
-          title: 'Voice Studio Audio',
-          text: 'Check out this audio I created!',
-          files: [file]
-        })
+          title: "Voice Studio Audio",
+          text: "Check out this audio I created!",
+          files: [file],
+        });
       } catch (error) {
-        console.error('Share failed:', error)
-        downloadAudio()
+        console.error("Share failed:", error);
+        downloadAudio();
       }
     } else {
-      downloadAudio()
+      downloadAudio();
     }
-  }
+  };
 
   const downloadAudio = () => {
     if (audioUrl) {
-      const a = document.createElement('a')
-      a.href = audioUrl
-      a.download = `tts-audio-${Date.now()}.mp3`
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
+      const a = document.createElement("a");
+      a.href = audioUrl;
+      a.download = `tts-audio-${Date.now()}.mp3`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
     }
-  }
+  };
 
   const fetchProjectInfo = async () => {
     try {
-      const response = await fetch('/api/project-info')
+      const response = await fetch("/api/project-info");
       if (response.ok) {
-        const info = await response.json()
-        setProjectInfo(info)
+        const info = await response.json();
+        setProjectInfo(info);
       }
     } catch (error) {
-      console.error('Failed to fetch project info:', error)
+      console.error("Failed to fetch project info:", error);
     }
-  }
+  };
 
   const downloadProject = async () => {
     try {
-      setIsProcessing(true)
-      
-      const response = await fetch('/api/download-project')
-      
+      setIsProcessing(true);
+
+      const response = await fetch("/api/download-project");
+
       if (!response.ok) {
-        throw new Error('Failed to download project')
+        throw new Error("Failed to download project");
       }
-      
-      const blob = await response.blob()
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = 'ilack.tar.gz'
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      URL.revokeObjectURL(url)
-      
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "ilack.tar.gz";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
       toast({
         title: "Project downloaded",
         description: "The complete project has been downloaded successfully.",
-      })
+      });
     } catch (error) {
-      console.error('Project download error:', error)
+      console.error("Project download error:", error);
       toast({
         title: "Download failed",
         description: "Failed to download the project. Please try again.",
         variant: "destructive",
-      })
+      });
     } finally {
-      setIsProcessing(false)
+      setIsProcessing(false);
     }
-  }
+  };
 
-  const currentVoice = allVoices.find(v => v.id === selectedVoice)
+  const currentVoice = allVoices.find((v) => v.id === selectedVoice);
 
   // Mobile UI
   if (mobileInfo.isMobile) {
@@ -997,7 +1178,8 @@ export default function TTSApp() {
           showBackButton={showVoiceSelector}
           onBackClick={() => setShowVoiceSelector(false)}
           actions={
-            activeMobileTab === 'home' && !showVoiceSelector && (
+            activeMobileTab === "home" &&
+            !showVoiceSelector && (
               <Button
                 variant="ghost"
                 size="sm"
@@ -1018,16 +1200,16 @@ export default function TTSApp() {
               selectedVoice={selectedVoice}
               onVoiceSelect={setSelectedVoice}
               onPreview={(voiceId) => {
-                const voice = allVoices.find(v => v.id === voiceId)
+                const voice = allVoices.find((v) => v.id === voiceId);
                 if (voice) {
-                  previewVoice()
+                  previewVoice();
                 }
               }}
               onClose={() => setShowVoiceSelector(false)}
             />
           ) : (
             <>
-              {activeMobileTab === 'home' && (
+              {activeMobileTab === "home" && (
                 <MobileHome
                   text={text}
                   setText={setText}
@@ -1044,17 +1226,17 @@ export default function TTSApp() {
                 />
               )}
 
-              {activeMobileTab === 'voice' && (
+              {activeMobileTab === "voice" && (
                 <MobileVoiceSelector
                   voices={allVoices}
                   selectedVoice={selectedVoice}
                   onVoiceSelect={setSelectedVoice}
                   onPreview={previewVoice}
-                  onClose={() => setActiveMobileTab('home')}
+                  onClose={() => setActiveMobileTab("home")}
                 />
               )}
 
-              {activeMobileTab === 'downloads' && (
+              {activeMobileTab === "downloads" && (
                 <MobileDownloads
                   audioUrl={audioUrl}
                   onDownloadAudio={downloadAudio}
@@ -1064,7 +1246,7 @@ export default function TTSApp() {
                 />
               )}
 
-              {activeMobileTab === 'settings' && (
+              {activeMobileTab === "settings" && (
                 <MobileSettings
                   voiceSettings={voiceSettings}
                   onVoiceSettingsChange={setVoiceSettings}
@@ -1081,7 +1263,7 @@ export default function TTSApp() {
         </div>
 
         {/* FAB for quick actions */}
-        {activeMobileTab === 'home' && !showVoiceSelector && text && (
+        {activeMobileTab === "home" && !showVoiceSelector && text && (
           <Fab
             onClick={generateSpeech}
             icon={<Play className="h-6 w-6" />}
@@ -1105,7 +1287,7 @@ export default function TTSApp() {
           className="hidden"
         />
       </div>
-    )
+    );
   }
 
   // Desktop UI (original)
@@ -1133,18 +1315,28 @@ export default function TTSApp() {
             </h1>
           </div>
           <p className="text-lg md:text-xl text-gray-600 max-w-2xl mx-auto">
-            Transform your text into natural-sounding speech with advanced AI voices
+            Transform your text into natural-sounding speech with advanced AI
+            voices
           </p>
           <div className="flex items-center justify-center gap-4 flex-wrap">
-            <Badge variant="secondary" className="bg-purple-100 text-purple-800 hover:bg-purple-200">
+            <Badge
+              variant="secondary"
+              className="bg-purple-100 text-purple-800 hover:bg-purple-200"
+            >
               <Sparkles className="h-3 w-3 mr-1" />
               AI Powered
             </Badge>
-            <Badge variant="secondary" className="bg-pink-100 text-pink-800 hover:bg-pink-200">
+            <Badge
+              variant="secondary"
+              className="bg-pink-100 text-pink-800 hover:bg-pink-200"
+            >
               <Zap className="h-3 w-3 mr-1" />
               Instant Generation
             </Badge>
-            <Badge variant="secondary" className="bg-blue-100 text-blue-800 hover:bg-blue-200">
+            <Badge
+              variant="secondary"
+              className="bg-blue-100 text-blue-800 hover:bg-blue-200"
+            >
               <Mic className="h-3 w-3 mr-1" />
               Multiple Voices
             </Badge>
@@ -1169,9 +1361,9 @@ export default function TTSApp() {
               <CardContent>
                 <div
                   className={`border-2 border-dashed rounded-lg p-8 text-center transition-all duration-200 ${
-                    isDragging 
-                      ? 'border-purple-500 bg-purple-50' 
-                      : 'border-gray-300 hover:border-gray-400 bg-gray-50/50'
+                    isDragging
+                      ? "border-purple-500 bg-purple-50"
+                      : "border-gray-300 hover:border-gray-400 bg-gray-50/50"
                   }`}
                   onDragOver={handleDragOver}
                   onDragLeave={handleDragLeave}
@@ -1190,7 +1382,9 @@ export default function TTSApp() {
                     </div>
                     <div>
                       <p className="text-lg font-medium text-gray-900">
-                        {isDragging ? 'Drop your file here' : 'Drag & drop your file here'}
+                        {isDragging
+                          ? "Drop your file here"
+                          : "Drag & drop your file here"}
                       </p>
                       <p className="text-sm text-gray-500 mt-1">
                         or click to browse
@@ -1206,8 +1400,12 @@ export default function TTSApp() {
                       Choose File
                     </Button>
                     <div className="text-xs text-gray-500 space-y-1">
-                      <div className="font-medium text-green-600">✓ Text files (.txt) - Fully supported</div>
-                      <div className="text-orange-600">⚠ PDF/Word files - Limited support</div>
+                      <div className="font-medium text-green-600">
+                        ✓ Text files (.txt) - Fully supported
+                      </div>
+                      <div className="text-orange-600">
+                        ⚠ PDF/Word files - Limited support
+                      </div>
                       <div>Max file size: 10MB</div>
                     </div>
                   </div>
@@ -1215,7 +1413,9 @@ export default function TTSApp() {
                 {uploadedFileName && (
                   <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg flex items-center gap-2">
                     <FileText className="h-4 w-4 text-green-600" />
-                    <span className="text-sm text-green-800">{uploadedFileName}</span>
+                    <span className="text-sm text-green-800">
+                      {uploadedFileName}
+                    </span>
                   </div>
                 )}
               </CardContent>
@@ -1239,28 +1439,32 @@ export default function TTSApp() {
                     <div className="flex items-center gap-2 mb-2">
                       <Volume2 className="h-4 w-4 text-purple-600" />
                       <span className="text-sm font-medium text-purple-800">
-                        {isPaused ? 'Paused' : 'Speaking'}...
+                        {isPaused ? "Paused" : "Speaking"}...
                       </span>
                     </div>
-                    <div className="text-sm leading-relaxed max-h-32 overflow-y-auto">
+                    <div
+                      ref={wordsContainerRef}
+                      className="text-sm leading-relaxed max-h-32 overflow-y-auto"
+                    >
                       {words.map((word, index) => (
                         <span
+                          id={`word-${index}`}
                           key={index}
                           className={`transition-all duration-200 ${
                             index === currentWordIndex
-                              ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white px-1 rounded font-semibold'
+                              ? "bg-gradient-to-r from-purple-600 to-pink-600 text-white px-1 rounded font-semibold"
                               : index < currentWordIndex
-                              ? 'text-gray-500'
-                              : 'text-gray-800'
+                              ? "text-gray-500"
+                              : "text-gray-800"
                           }`}
                         >
-                          {word}{' '}
+                          {word}{" "}
                         </span>
                       ))}
                     </div>
                   </div>
                 )}
-                
+
                 <Textarea
                   placeholder="Enter your text here, or upload a file above..."
                   value={text}
@@ -1285,15 +1489,17 @@ export default function TTSApp() {
                   <Volume2 className="h-5 w-5 text-purple-600" />
                   Voice Selection
                 </CardTitle>
-                <CardDescription>
-                  Choose your preferred voice
-                </CardDescription>
+                <CardDescription>Choose your preferred voice</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="voice-select">Select Voice</Label>
                   <div className="flex gap-2">
-                    <Select value={selectedVoice} onValueChange={setSelectedVoice} disabled={isProcessing}>
+                    <Select
+                      value={selectedVoice}
+                      onValueChange={setSelectedVoice}
+                      disabled={isProcessing}
+                    >
                       <SelectTrigger className="flex-1">
                         <SelectValue placeholder="Choose a voice" />
                       </SelectTrigger>
@@ -1303,22 +1509,28 @@ export default function TTSApp() {
                             <SelectItem key={voice.id} value={voice.id}>
                               <div className="flex items-center justify-between w-full">
                                 <div className="flex items-center gap-2">
-                                  <span className="truncate max-w-[150px]">{voice.name}</span>
+                                  <span className="truncate max-w-[150px]">
+                                    {voice.name}
+                                  </span>
                                   {voice.isDefault && (
-                                    <span className="text-xs bg-yellow-100 text-yellow-800 px-1 py-0.5 rounded">Default</span>
+                                    <span className="text-xs bg-yellow-100 text-yellow-800 px-1 py-0.5 rounded">
+                                      Default
+                                    </span>
                                   )}
                                 </div>
                                 <div className="flex items-center gap-2 ml-2">
                                   <span className="text-xs text-muted-foreground">
                                     {voice.language}
                                   </span>
-                                  <span className={`text-xs px-2 py-1 rounded-full ${
-                                    voice.source === 'browser' 
-                                      ? 'bg-purple-100 text-purple-800' 
-                                      : voice.source === 'local'
-                                      ? 'bg-blue-100 text-blue-800' 
-                                      : 'bg-green-100 text-green-800'
-                                  }`}>
+                                  <span
+                                    className={`text-xs px-2 py-1 rounded-full ${
+                                      voice.source === "browser"
+                                        ? "bg-purple-100 text-purple-800"
+                                        : voice.source === "local"
+                                        ? "bg-blue-100 text-blue-800"
+                                        : "bg-green-100 text-green-800"
+                                    }`}
+                                  >
                                     {voice.source}
                                   </span>
                                 </div>
@@ -1361,17 +1573,24 @@ export default function TTSApp() {
                         </div>
                         <div className="flex justify-between">
                           <span className="font-medium">Source:</span>
-                          <Badge variant={
-                            currentVoice.source === 'browser' ? 'default' :
-                            currentVoice.source === 'local' ? 'secondary' : 'outline'
-                          }>
+                          <Badge
+                            variant={
+                              currentVoice.source === "browser"
+                                ? "default"
+                                : currentVoice.source === "local"
+                                ? "secondary"
+                                : "outline"
+                            }
+                          >
                             {currentVoice.source}
                           </Badge>
                         </div>
                         {currentVoice.isDefault && (
                           <div className="flex justify-between">
                             <span className="font-medium">Default:</span>
-                            <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded">Yes</span>
+                            <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded">
+                              Yes
+                            </span>
                           </div>
                         )}
                       </div>
@@ -1382,7 +1601,9 @@ export default function TTSApp() {
                 {/* Voice Controls */}
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <Label className="text-sm font-medium">Voice Controls</Label>
+                    <Label className="text-sm font-medium">
+                      Voice Controls
+                    </Label>
                     <Button
                       variant="ghost"
                       size="sm"
@@ -1390,21 +1611,28 @@ export default function TTSApp() {
                       className="h-8 px-2"
                     >
                       <Sliders className="h-4 w-4 mr-1" />
-                      {showVoiceControls ? 'Hide' : 'Show'}
+                      {showVoiceControls ? "Hide" : "Show"}
                     </Button>
                   </div>
-                  
+
                   {showVoiceControls && (
                     <div className="space-y-4 p-4 bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg border border-purple-200">
                       {/* Rate Control */}
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
                           <Label className="text-xs font-medium">Rate</Label>
-                          <span className="text-xs text-muted-foreground">{voiceSettings.rate.toFixed(1)}x</span>
+                          <span className="text-xs text-muted-foreground">
+                            {voiceSettings.rate.toFixed(1)}x
+                          </span>
                         </div>
                         <Slider
                           value={[voiceSettings.rate]}
-                          onValueChange={(value) => setVoiceSettings(prev => ({ ...prev, rate: value[0] }))}
+                          onValueChange={(value) =>
+                            setVoiceSettings((prev) => ({
+                              ...prev,
+                              rate: value[0],
+                            }))
+                          }
                           min={0.5}
                           max={2.0}
                           step={0.1}
@@ -1416,11 +1644,18 @@ export default function TTSApp() {
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
                           <Label className="text-xs font-medium">Pitch</Label>
-                          <span className="text-xs text-muted-foreground">{voiceSettings.pitch.toFixed(1)}</span>
+                          <span className="text-xs text-muted-foreground">
+                            {voiceSettings.pitch.toFixed(1)}
+                          </span>
                         </div>
                         <Slider
                           value={[voiceSettings.pitch]}
-                          onValueChange={(value) => setVoiceSettings(prev => ({ ...prev, pitch: value[0] }))}
+                          onValueChange={(value) =>
+                            setVoiceSettings((prev) => ({
+                              ...prev,
+                              pitch: value[0],
+                            }))
+                          }
                           min={0.5}
                           max={2.0}
                           step={0.1}
@@ -1432,11 +1667,18 @@ export default function TTSApp() {
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
                           <Label className="text-xs font-medium">Volume</Label>
-                          <span className="text-xs text-muted-foreground">{Math.round(voiceSettings.volume * 100)}%</span>
+                          <span className="text-xs text-muted-foreground">
+                            {Math.round(voiceSettings.volume * 100)}%
+                          </span>
                         </div>
                         <Slider
                           value={[voiceSettings.volume]}
-                          onValueChange={(value) => setVoiceSettings(prev => ({ ...prev, volume: value[0] }))}
+                          onValueChange={(value) =>
+                            setVoiceSettings((prev) => ({
+                              ...prev,
+                              volume: value[0],
+                            }))
+                          }
                           min={0}
                           max={1.0}
                           step={0.1}
@@ -1449,7 +1691,13 @@ export default function TTSApp() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => setVoiceSettings({ rate: 0.8, pitch: 0.9, volume: 1.0 })}
+                          onClick={() =>
+                            setVoiceSettings({
+                              rate: 0.8,
+                              pitch: 0.9,
+                              volume: 1.0,
+                            })
+                          }
                           className="text-xs"
                         >
                           Slow
@@ -1457,7 +1705,13 @@ export default function TTSApp() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => setVoiceSettings({ rate: 1.0, pitch: 1.0, volume: 1.0 })}
+                          onClick={() =>
+                            setVoiceSettings({
+                              rate: 1.0,
+                              pitch: 1.0,
+                              volume: 1.0,
+                            })
+                          }
                           className="text-xs"
                         >
                           Normal
@@ -1465,7 +1719,13 @@ export default function TTSApp() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => setVoiceSettings({ rate: 1.2, pitch: 1.1, volume: 1.0 })}
+                          onClick={() =>
+                            setVoiceSettings({
+                              rate: 1.2,
+                              pitch: 1.1,
+                              volume: 1.0,
+                            })
+                          }
                           className="text-xs"
                         >
                           Fast
@@ -1487,14 +1747,22 @@ export default function TTSApp() {
                 {/* Voice Profiles */}
                 {voiceProfiles.length > 0 && (
                   <div className="space-y-2">
-                    <Label className="text-sm font-medium">Voice Profiles</Label>
+                    <Label className="text-sm font-medium">
+                      Voice Profiles
+                    </Label>
                     <div className="space-y-2 max-h-32 overflow-y-auto">
                       {voiceProfiles.map((profile) => (
-                        <div key={profile.id} className="flex items-center justify-between p-2 bg-gray-50 rounded-md">
+                        <div
+                          key={profile.id}
+                          className="flex items-center justify-between p-2 bg-gray-50 rounded-md"
+                        >
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium truncate">{profile.name}</p>
+                            <p className="text-sm font-medium truncate">
+                              {profile.name}
+                            </p>
                             <p className="text-xs text-muted-foreground">
-                              Rate: {profile.settings.rate.toFixed(1)} | Pitch: {profile.settings.pitch.toFixed(1)}
+                              Rate: {profile.settings.rate.toFixed(1)} | Pitch:{" "}
+                              {profile.settings.pitch.toFixed(1)}
                             </p>
                           </div>
                           <div className="flex gap-1">
@@ -1531,41 +1799,64 @@ export default function TTSApp() {
                     />
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    Create multi-voice audio content with different voices for different segments
+                    Create multi-voice audio content with different voices for
+                    different segments
                   </p>
                 </div>
 
                 {/* Voice Info */}
-                {voicesLoaded && (browserVoices.length > 0 || availableVoices.length > 0) && (
-                  <div className="space-y-2">
-                    <Label className="text-xs text-muted-foreground">
-                      Available Voices ({browserVoices.length} browser + {fallbackVoices.length} online)
-                    </Label>
-                    <div className="p-2 bg-gray-50 rounded-md text-xs max-h-24 overflow-y-auto">
-                      {browserVoices.slice(0, 2).map((voice, index) => (
-                        <div key={index} className="text-muted-foreground flex items-center gap-1">
-                          <span>{voice.name}</span>
-                          <span className="text-gray-400">({voice.language})</span>
-                          {voice.isDefault && <span className="text-yellow-600">⭐</span>}
-                          <span className="text-purple-600 bg-purple-50 px-1 rounded">Browser</span>
-                        </div>
-                      ))}
-                      {browserVoices.length > 2 && (
-                        <div className="text-muted-foreground italic">
-                          ... and {browserVoices.length - 2} more browser voices
-                        </div>
-                      )}
-                      {fallbackVoices.length > 0 && browserVoices.length > 0 && <div className="border-t my-1"></div>}
-                      {fallbackVoices.slice(0, 1).map((voice, index) => (
-                        <div key={index} className="text-muted-foreground flex items-center gap-1">
-                          <span>{voice.name}</span>
-                          <span className="text-gray-400">({voice.language})</span>
-                          <span className="text-green-600 bg-green-50 px-1 rounded">Online</span>
-                        </div>
-                      ))}
+                {voicesLoaded &&
+                  (browserVoices.length > 0 || availableVoices.length > 0) && (
+                    <div className="space-y-2">
+                      <Label className="text-xs text-muted-foreground">
+                        Available Voices ({browserVoices.length} browser +{" "}
+                        {fallbackVoices.length} online)
+                      </Label>
+                      <div className="p-2 bg-gray-50 rounded-md text-xs max-h-24 overflow-y-auto">
+                        {browserVoices.slice(0, 2).map((voice, index) => (
+                          <div
+                            key={index}
+                            className="text-muted-foreground flex items-center gap-1"
+                          >
+                            <span>{voice.name}</span>
+                            <span className="text-gray-400">
+                              ({voice.language})
+                            </span>
+                            {voice.isDefault && (
+                              <span className="text-yellow-600">⭐</span>
+                            )}
+                            <span className="text-purple-600 bg-purple-50 px-1 rounded">
+                              Browser
+                            </span>
+                          </div>
+                        ))}
+                        {browserVoices.length > 2 && (
+                          <div className="text-muted-foreground italic">
+                            ... and {browserVoices.length - 2} more browser
+                            voices
+                          </div>
+                        )}
+                        {fallbackVoices.length > 0 &&
+                          browserVoices.length > 0 && (
+                            <div className="border-t my-1"></div>
+                          )}
+                        {fallbackVoices.slice(0, 1).map((voice, index) => (
+                          <div
+                            key={index}
+                            className="text-muted-foreground flex items-center gap-1"
+                          >
+                            <span>{voice.name}</span>
+                            <span className="text-gray-400">
+                              ({voice.language})
+                            </span>
+                            <span className="text-green-600 bg-green-50 px-1 rounded">
+                              Online
+                            </span>
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
               </CardContent>
             </Card>
 
@@ -1578,7 +1869,8 @@ export default function TTSApp() {
                     Podcast Studio
                   </CardTitle>
                   <CardDescription>
-                    Create multi-voice content by adding segments with different voices
+                    Create multi-voice content by adding segments with different
+                    voices
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -1595,7 +1887,11 @@ export default function TTSApp() {
                       />
                     </div>
                     <div className="flex gap-2">
-                      <Select value={selectedVoice} onValueChange={setSelectedVoice} disabled={isProcessing}>
+                      <Select
+                        value={selectedVoice}
+                        onValueChange={setSelectedVoice}
+                        disabled={isProcessing}
+                      >
                         <SelectTrigger className="flex-1">
                           <SelectValue placeholder="Choose voice for this segment" />
                         </SelectTrigger>
@@ -1604,12 +1900,16 @@ export default function TTSApp() {
                             {allVoices.map((voice) => (
                               <SelectItem key={voice.id} value={voice.id}>
                                 <div className="flex items-center justify-between w-full">
-                                  <span className="truncate max-w-[120px]">{voice.name}</span>
-                                  <span className={`text-xs px-1 py-0.5 rounded ${
-                                    voice.source === 'browser' 
-                                      ? 'bg-purple-100 text-purple-800' 
-                                      : 'bg-green-100 text-green-800'
-                                  }`}>
+                                  <span className="truncate max-w-[120px]">
+                                    {voice.name}
+                                  </span>
+                                  <span
+                                    className={`text-xs px-1 py-0.5 rounded ${
+                                      voice.source === "browser"
+                                        ? "bg-purple-100 text-purple-800"
+                                        : "bg-green-100 text-green-800"
+                                    }`}
+                                  >
                                     {voice.source}
                                   </span>
                                 </div>
@@ -1651,8 +1951,8 @@ export default function TTSApp() {
                             key={segment.id}
                             className={`p-3 rounded-lg border transition-all ${
                               currentSegmentIndex === index
-                                ? 'bg-gradient-to-r from-purple-50 to-pink-50 border-purple-300'
-                                : 'bg-gray-50 border-gray-200'
+                                ? "bg-gradient-to-r from-purple-50 to-pink-50 border-purple-300"
+                                : "bg-gray-50 border-gray-200"
                             }`}
                           >
                             <div className="flex items-start justify-between">
@@ -1703,7 +2003,9 @@ export default function TTSApp() {
                   ) : isPodcastMode ? (
                     <>
                       <Radio className="h-4 w-4 mr-2" />
-                      {podcastSegments.length > 0 ? 'Play Podcast' : 'Add Segments'}
+                      {podcastSegments.length > 0
+                        ? "Play Podcast"
+                        : "Add Segments"}
                     </>
                   ) : (
                     <>
@@ -1726,26 +2028,28 @@ export default function TTSApp() {
                     </Button>
                   )}
 
-                  {isPlaying && (currentVoice?.source === 'browser' || currentVoice?.source === 'local') && (
-                    <Button
-                      onClick={togglePauseResume}
-                      variant="outline"
-                      disabled={isProcessing}
-                      className="w-full"
-                    >
-                      {isPaused ? (
-                        <>
-                          <Play className="h-4 w-4 mr-2" />
-                          Resume
-                        </>
-                      ) : (
-                        <>
-                          <Pause className="h-4 w-4 mr-2" />
-                          Pause
-                        </>
-                      )}
-                    </Button>
-                  )}
+                  {isPlaying &&
+                    (currentVoice?.source === "browser" ||
+                      currentVoice?.source === "local") && (
+                      <Button
+                        onClick={togglePauseResume}
+                        variant="outline"
+                        disabled={isProcessing}
+                        className="w-full"
+                      >
+                        {isPaused ? (
+                          <>
+                            <Play className="h-4 w-4 mr-2" />
+                            Resume
+                          </>
+                        ) : (
+                          <>
+                            <Pause className="h-4 w-4 mr-2" />
+                            Pause
+                          </>
+                        )}
+                      </Button>
+                    )}
 
                   {audioUrl && (
                     <Button
@@ -1786,10 +2090,16 @@ export default function TTSApp() {
                     variant="outline"
                     disabled={isProcessing || !projectInfo?.exists}
                     className="w-full"
-                    title={projectInfo?.exists ? `Download complete project (${projectInfo.fileSizeFormatted})` : "Project archive not available"}
+                    title={
+                      projectInfo?.exists
+                        ? `Download complete project (${projectInfo.fileSizeFormatted})`
+                        : "Project archive not available"
+                    }
                   >
                     <Archive className="h-4 w-4 mr-1" />
-                    {projectInfo?.exists ? `Project (${projectInfo.fileSizeFormatted})` : 'Project'}
+                    {projectInfo?.exists
+                      ? `Project (${projectInfo.fileSizeFormatted})`
+                      : "Project"}
                   </Button>
                 </div>
 
@@ -1811,7 +2121,10 @@ export default function TTSApp() {
                   </Button>
                 </div>
 
-                {(text || audioUrl || uploadedFileName || podcastSegments.length > 0) && (
+                {(text ||
+                  audioUrl ||
+                  uploadedFileName ||
+                  podcastSegments.length > 0) && (
                   <Button
                     onClick={clearAll}
                     variant="outline"
@@ -1827,7 +2140,9 @@ export default function TTSApp() {
                 {mobileInfo.isMobile && (
                   <div className="flex items-center justify-center p-2 bg-blue-50 rounded-lg">
                     <Smartphone className="h-4 w-4 text-blue-600 mr-2" />
-                    <span className="text-xs text-blue-800">Mobile mode enabled</span>
+                    <span className="text-xs text-blue-800">
+                      Mobile mode enabled
+                    </span>
                   </div>
                 )}
               </CardContent>
@@ -1885,27 +2200,34 @@ export default function TTSApp() {
                 <Volume2 className="h-8 w-8 text-purple-600" />
               </div>
               <h3 className="text-lg font-semibold mb-2">Natural Voices</h3>
-              <p className="text-sm text-gray-600">Choose from various natural-sounding voices with different accents and genders</p>
+              <p className="text-sm text-gray-600">
+                Choose from various natural-sounding voices with different
+                accents and genders
+              </p>
             </CardContent>
           </Card>
-          
+
           <Card className="border-0 shadow-xl bg-white/80 backdrop-blur-sm text-center">
             <CardContent className="pt-6">
               <div className="mx-auto w-16 h-16 bg-gradient-to-r from-pink-100 to-pink-200 rounded-full flex items-center justify-center mb-4">
                 <FileText className="h-8 w-8 text-pink-600" />
               </div>
               <h3 className="text-lg font-semibold mb-2">File Support</h3>
-              <p className="text-sm text-gray-600">Upload PDF, DOC, or TXT files and automatically extract text</p>
+              <p className="text-sm text-gray-600">
+                Upload PDF, DOC, or TXT files and automatically extract text
+              </p>
             </CardContent>
           </Card>
-          
+
           <Card className="border-0 shadow-xl bg-white/80 backdrop-blur-sm text-center">
             <CardContent className="pt-6">
               <div className="mx-auto w-16 h-16 bg-gradient-to-r from-blue-100 to-blue-200 rounded-full flex items-center justify-center mb-4">
                 <Download className="h-8 w-8 text-blue-600" />
               </div>
               <h3 className="text-lg font-semibold mb-2">Download Audio</h3>
-              <p className="text-sm text-gray-600">Save your generated speech as high-quality MP3 files</p>
+              <p className="text-sm text-gray-600">
+                Save your generated speech as high-quality MP3 files
+              </p>
             </CardContent>
           </Card>
         </div>
@@ -1925,45 +2247,65 @@ export default function TTSApp() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
                 <div className="flex items-center gap-1">
-                  <kbd className="px-2 py-1 text-xs font-semibold text-gray-800 bg-gray-200 border border-gray-300 rounded">Ctrl</kbd>
+                  <kbd className="px-2 py-1 text-xs font-semibold text-gray-800 bg-gray-200 border border-gray-300 rounded">
+                    Ctrl
+                  </kbd>
                   <span className="text-gray-500">+</span>
-                  <kbd className="px-2 py-1 text-xs font-semibold text-gray-800 bg-gray-200 border border-gray-300 rounded">Space</kbd>
+                  <kbd className="px-2 py-1 text-xs font-semibold text-gray-800 bg-gray-200 border border-gray-300 rounded">
+                    Space
+                  </kbd>
                 </div>
                 <span className="text-sm text-gray-700">Play/Pause</span>
               </div>
-              
+
               <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
                 <div className="flex items-center gap-1">
-                  <kbd className="px-2 py-1 text-xs font-semibold text-gray-800 bg-gray-200 border border-gray-300 rounded">Ctrl</kbd>
+                  <kbd className="px-2 py-1 text-xs font-semibold text-gray-800 bg-gray-200 border border-gray-300 rounded">
+                    Ctrl
+                  </kbd>
                   <span className="text-gray-500">+</span>
-                  <kbd className="px-2 py-1 text-xs font-semibold text-gray-800 bg-gray-200 border border-gray-300 rounded">S</kbd>
+                  <kbd className="px-2 py-1 text-xs font-semibold text-gray-800 bg-gray-200 border border-gray-300 rounded">
+                    S
+                  </kbd>
                 </div>
                 <span className="text-sm text-gray-700">Stop</span>
               </div>
-              
+
               <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
                 <div className="flex items-center gap-1">
-                  <kbd className="px-2 py-1 text-xs font-semibold text-gray-800 bg-gray-200 border border-gray-300 rounded">Ctrl</kbd>
+                  <kbd className="px-2 py-1 text-xs font-semibold text-gray-800 bg-gray-200 border border-gray-300 rounded">
+                    Ctrl
+                  </kbd>
                   <span className="text-gray-500">+</span>
-                  <kbd className="px-2 py-1 text-xs font-semibold text-gray-800 bg-gray-200 border border-gray-300 rounded">D</kbd>
+                  <kbd className="px-2 py-1 text-xs font-semibold text-gray-800 bg-gray-200 border border-gray-300 rounded">
+                    D
+                  </kbd>
                 </div>
                 <span className="text-sm text-gray-700">Download</span>
               </div>
-              
+
               <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
                 <div className="flex items-center gap-1">
-                  <kbd className="px-2 py-1 text-xs font-semibold text-gray-800 bg-gray-200 border border-gray-300 rounded">Ctrl</kbd>
+                  <kbd className="px-2 py-1 text-xs font-semibold text-gray-800 bg-gray-200 border border-gray-300 rounded">
+                    Ctrl
+                  </kbd>
                   <span className="text-gray-500">+</span>
-                  <kbd className="px-2 py-1 text-xs font-semibold text-gray-800 bg-gray-200 border border-gray-300 rounded">K</kbd>
+                  <kbd className="px-2 py-1 text-xs font-semibold text-gray-800 bg-gray-200 border border-gray-300 rounded">
+                    K
+                  </kbd>
                 </div>
                 <span className="text-sm text-gray-700">Voice Controls</span>
               </div>
-              
+
               <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
                 <div className="flex items-center gap-1">
-                  <kbd className="px-2 py-1 text-xs font-semibold text-gray-800 bg-gray-200 border border-gray-300 rounded">Ctrl</kbd>
+                  <kbd className="px-2 py-1 text-xs font-semibold text-gray-800 bg-gray-200 border border-gray-300 rounded">
+                    Ctrl
+                  </kbd>
                   <span className="text-gray-500">+</span>
-                  <kbd className="px-2 py-1 text-xs font-semibold text-gray-800 bg-gray-200 border border-gray-300 rounded">P</kbd>
+                  <kbd className="px-2 py-1 text-xs font-semibold text-gray-800 bg-gray-200 border border-gray-300 rounded">
+                    P
+                  </kbd>
                 </div>
                 <span className="text-sm text-gray-700">Podcast Mode</span>
               </div>
@@ -1974,8 +2316,13 @@ export default function TTSApp() {
 
       <style jsx>{`
         @keyframes pulse {
-          0%, 100% { opacity: 0.3; }
-          50% { opacity: 0.5; }
+          0%,
+          100% {
+            opacity: 0.3;
+          }
+          50% {
+            opacity: 0.5;
+          }
         }
         .animation-delay-2000 {
           animation-delay: 2s;
@@ -1985,5 +2332,5 @@ export default function TTSApp() {
         }
       `}</style>
     </div>
-  )
+  );
 }

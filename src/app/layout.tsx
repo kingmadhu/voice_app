@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+// @ts-ignore: allow side-effect import of global CSS without module declarations
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 
@@ -14,21 +15,29 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Z.ai Code Scaffold - AI-Powered Development",
-  description: "Modern Next.js scaffold optimized for AI-powered development with Z.ai. Built with TypeScript, Tailwind CSS, and shadcn/ui.",
-  keywords: ["Z.ai", "Next.js", "TypeScript", "Tailwind CSS", "shadcn/ui", "AI development", "React"],
-  authors: [{ name: "Z.ai Team" }],
+  title: "Ilack Voice App",
+  description: "Ilack Voice App",
+  keywords: [
+    "Ilack Voice",
+    "Next.js",
+    "TypeScript",
+    "Tailwind CSS",
+    "shadcn/ui",
+    "Ilack",
+    "KMAssociations",
+  ],
+  authors: [{ name: "KMAssociations Team" }],
   openGraph: {
-    title: "Z.ai Code Scaffold",
-    description: "AI-powered development with modern React stack",
-    url: "https://chat.z.ai",
-    siteName: "Z.ai",
+    title: "Ilack Voice App",
+    description: "Ilack Voice app",
+    url: "https://ilack-voice.netlify.app/",
+    siteName: "Ilack Voice",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Z.ai Code Scaffold",
-    description: "AI-powered development with modern React stack",
+    title: "Ilack Voice App",
+    description: "Ilack Voice app",
   },
 };
 
