@@ -9,7 +9,7 @@ COPY package*.json ./
 COPY package-lock.json ./
 
 # Install dependencies
-RUN npm ci
+RUN npm install
 
 # Build the application
 RUN npm run build
