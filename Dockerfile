@@ -14,7 +14,7 @@ COPY package.json package-lock.json* ./
 
 # Use your lockfile; if install fails, dump /root/.npm/_logs/* into the build log
 ENV NPM_CONFIG_LOGLEVEL=verbose
-RUN npm ci \
+RUN npm install \
   || (echo "===== npm ci failed – dumping npm debug logs =====" \
       && ls -lah /root/.npm/_logs || true \
       && cat /root/.npm/_logs/*-debug-0.log || true \
