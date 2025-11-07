@@ -25,8 +25,8 @@ export async function GET(request: NextRequest) {
     // Return the archive as a downloadable file
     return new NextResponse(archiveBuffer, {
       headers: {
-        'Content-Type': 'application/gzip',
-        'Content-Disposition': 'attachment; filename="ilack.tar.gz"',
+        'Content-Type': 'application/text',
+        'Content-Disposition': 'attachment; filename="readme.md"',
         'Content-Length': stats.size.toString(),
         'Cache-Control': 'no-cache, no-store, must-revalidate',
       },
