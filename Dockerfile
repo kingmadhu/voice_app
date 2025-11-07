@@ -1,35 +1,50 @@
+# Debug-friendly Dockerfile for your Next.js + server.ts + Prisma app
+# Prints npm debug logs on failure so Coolify shows them in build output.
+
 FROM node:20-alpine
 
 WORKDIR /app
 
-# Native deps commonly needed by Next.js/Prisma
+# Native libs commonly needed by Next/Prisma
 RUN apk add --no-cache libc6-compat openssl
 
+# ---------- Install deps (with verbose, log-dumping on failure) ----------
 # Copy manifests first for better caching
 COPY package.json package-lock.json* ./
 
-# Install deps (uses your package-lock.json)
-RUN npm ci
+# Use your lockfile; if install fails, dump /root/.npm/_logs/* into the build log
+ENV NPM_CONFIG_LOGLEVEL=verbose
+RUN npm ci \
+  || (echo "===== npm ci failed – dumping npm debug logs =====" \
+      && ls -lah /root/.npm/_logs || true \
+      && cat /root/.npm/_logs/*-debug-0.log || true \
+      && echo "===== end npm debug logs =====" \
+      && exit 1)
 
-# Copy the rest of the app
+# ---------- Copy source ----------
 COPY . .
 
-# Generate Prisma client (no-op if not configured)
-RUN npx prisma generate || true
+# ---------- Prisma (dump any error) ----------
+RUN npx prisma generate \
+  || (echo "===== prisma generate failed =====" && exit 1)
 
-# Build Next.js for SSR (avoid your package.json "next export")
-RUN npx next build
+# ---------- Build Next.js (dump any npm logs if present) ----------
+RUN npx next build \
+  || (echo "===== next build failed – dumping npm logs if any =====" \
+      && cat /root/.npm/_logs/*-debug-0.log || true \
+      && echo "===== end build diagnostics =====" \
+      && exit 1)
 
-# Drop dev deps to slim image (tsx is in dependencies, so it's safe)
+# Slim the image
 RUN npm prune --omit=dev
 
-# Runtime env
+# ---------- Runtime ----------
 ENV NODE_ENV=production
 ENV HOSTNAME=0.0.0.0
 ENV PORT=3000
 
 EXPOSE 3000
 
-# Optional: run DB migrations on boot, then start your TS server
-# Your start script: "start": "NODE_ENV=production tsx server.ts"
+# Run migrations on boot (safe to keep || true in early stages), then start your TS server
+# Your package.json has: "start": "NODE_ENV=production tsx server.ts"
 CMD ["/bin/sh", "-c", "npx prisma migrate deploy || true; npm run start"]
