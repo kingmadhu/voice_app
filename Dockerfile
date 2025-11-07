@@ -29,11 +29,7 @@ RUN npx prisma generate \
   || (echo "===== prisma generate failed =====" && exit 1)
 
 # ---------- Build Next.js (dump any npm logs if present) ----------
-RUN npx next build \
-  || (echo "===== next build failed – dumping npm logs if any =====" \
-      && cat /root/.npm/_logs/*-debug-0.log || true \
-      && echo "===== end build diagnostics =====" \
-      && exit 1)
+RUN npm run dev
 
 # Slim the image
 RUN npm prune --omit=dev
