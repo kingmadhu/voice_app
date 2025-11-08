@@ -197,9 +197,6 @@ export default function TTSApp() {
       }
     }
 
-    // Fetch project info
-    fetchProjectInfo();
-
     if ("speechSynthesis" in window) {
       const loadVoices = () => {
         const systemVoices = speechSynthesis.getVoices();
@@ -253,7 +250,6 @@ export default function TTSApp() {
         const englishBrowserVoices = convertedBrowserVoices
           .filter((voice) => voice.language.startsWith("en"))
           .sort((a, b) => {
-            // Prioritize local voices and common quality indicators
             const aScore =
               (a.isDefault ? 2 : 0) +
               (a.name.includes("premium") || a.name.includes("enhanced")
@@ -382,9 +378,12 @@ export default function TTSApp() {
         setProgress(100);
       };
 
-      speechSynthesis.addEventListener("end", handleSpeechEnd);
+      // Not all browsers fire events the same way; this keeps it harmless.
+      // @ts-ignore
+      speechSynthesis.addEventListener?.("end", handleSpeechEnd);
       return () => {
-        speechSynthesis.removeEventListener("end", handleSpeechEnd);
+        // @ts-ignore
+        speechSynthesis.removeEventListener?.("end", handleSpeechEnd);
       };
     }
   }, []);
@@ -396,7 +395,6 @@ export default function TTSApp() {
 
     const activeEl = document.getElementById(`word-${currentWordIndex}`);
     if (activeEl) {
-      // Scroll the container so the active word is visible
       activeEl.scrollIntoView({
         behavior: "smooth",
         block: "nearest",
@@ -405,12 +403,9 @@ export default function TTSApp() {
     }
   }, [currentWordIndex, isPlaying]);
 
-  const handleFileUpload = async (
-    event: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
+  // ---------- FILE UPLOAD HELPERS (fixed) ----------
+  // Single function that processes a File (used by input onChange and drag/drop)
+  const processUploadedFile = async (file: File) => {
     // Check file size (limit to 10MB)
     const maxSize = 10 * 1024 * 1024; // 10MB
     if (file.size > maxSize) {
@@ -507,6 +502,17 @@ export default function TTSApp() {
     }
   };
 
+  // Input onChange -> extract File and delegate
+  const handleFileUpload = async (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    await processUploadedFile(file);
+    // Optional: clear so same file can be re-selected if needed
+    event.target.value = "";
+  };
+
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(true);
@@ -517,6 +523,7 @@ export default function TTSApp() {
     setIsDragging(false);
   };
 
+  // Drag/drop -> pass File directly (no fake React event)
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
@@ -524,13 +531,10 @@ export default function TTSApp() {
     const files = e.dataTransfer.files;
     if (files.length > 0) {
       const file = files[0];
-      // Create a synthetic event to reuse the existing handler
-      const syntheticEvent = {
-        target: { files: [file] },
-      } as React.ChangeEvent<HTMLInputElement>;
-      handleFileUpload(syntheticEvent);
+      processUploadedFile(file);
     }
   };
+  // ---------- END FILE UPLOAD HELPERS ----------
 
   const previewVoice = async () => {
     if (!selectedVoice) return;
@@ -648,40 +652,34 @@ export default function TTSApp() {
         console.log(
           "Available system voices:",
           currentVoices.map(
-            (v) => `${v.name} (${v.lang}) - ${v.local ? "Local" : "Remote"}`
+            (v) =>
+              `${v.name} (${v.lang}) - ${v.localService ? "Local" : "Remote"}`
           )
         );
         console.log(
           `Looking for voice: ${voice.name} (${voice.gender}, ${voice.language})`
         );
 
-        let matchingVoice = null;
+        let matchingVoice: SpeechSynthesisVoice | undefined = undefined;
 
         // Priority 1: Exact name match
         matchingVoice = currentVoices.find(
           (v) => v.name.toLowerCase() === voice.name.toLowerCase()
         );
 
-        if (matchingVoice) {
-          console.log(`Found exact match: ${matchingVoice.name}`);
-        } else {
+        if (!matchingVoice) {
           // Priority 2: Partial name match
           matchingVoice = currentVoices.find(
             (v) =>
               v.name.toLowerCase().includes(voice.name.toLowerCase()) ||
               voice.name.toLowerCase().includes(v.name.toLowerCase())
           );
-
-          if (matchingVoice) {
-            console.log(`Found partial match: ${matchingVoice.name}`);
-          }
         }
 
         if (!matchingVoice) {
           // Priority 3: Language + Gender match with common voice patterns
           const langCode = voice.language.split("-")[0];
 
-          // Define gender-specific keywords
           const femaleKeywords = [
             "female",
             "woman",
@@ -707,10 +705,8 @@ export default function TTSApp() {
             const voiceName = v.name.toLowerCase();
             const voiceLang = v.lang.toLowerCase();
 
-            // Check language match
             const langMatch = voiceLang.includes(langCode);
 
-            // Check gender match
             let genderMatch = false;
             if (voice.gender === "Female") {
               genderMatch = femaleKeywords.some((keyword) =>
@@ -724,10 +720,6 @@ export default function TTSApp() {
 
             return langMatch && genderMatch;
           });
-
-          if (matchingVoice) {
-            console.log(`Found language+gender match: ${matchingVoice.name}`);
-          }
         }
 
         if (!matchingVoice) {
@@ -736,10 +728,6 @@ export default function TTSApp() {
           matchingVoice = currentVoices.find((v) =>
             v.lang.toLowerCase().includes(langCode)
           );
-
-          if (matchingVoice) {
-            console.log(`Found language match: ${matchingVoice.name}`);
-          }
         }
 
         if (!matchingVoice) {
@@ -747,16 +735,11 @@ export default function TTSApp() {
           matchingVoice = currentVoices.find((v) =>
             v.lang.toLowerCase().includes("en")
           );
-
-          if (matchingVoice) {
-            console.log(`Found English voice: ${matchingVoice.name}`);
-          }
         }
 
         if (!matchingVoice) {
           // Priority 6: First available voice
           matchingVoice = currentVoices[0];
-          console.log(`Using first available voice: ${matchingVoice.name}`);
         }
 
         if (matchingVoice) {
@@ -774,8 +757,7 @@ export default function TTSApp() {
         setProgress(10);
       };
 
-      utterance.onboundary = (event) => {
-        // Update progress based on word boundaries
+      utterance.onboundary = (event: SpeechSynthesisEvent) => {
         const progressPercent = Math.min(
           (event.charIndex / textToSpeak.length) * 100,
           90
@@ -783,7 +765,8 @@ export default function TTSApp() {
         setProgress(progressPercent);
 
         // Update current word for highlighting
-        if (event.name === "word") {
+        // Not all browsers provide "word" name; we gracefully ignore if absent
+        if ((event as any).name === "word") {
           const textBefore = textToSpeak.substring(0, event.charIndex);
           const wordCount = (textBefore.match(/\S+/g) || []).length;
           setCurrentWordIndex(wordCount);
@@ -802,7 +785,7 @@ export default function TTSApp() {
         });
       };
 
-      utterance.onerror = (event) => {
+      utterance.onerror = (event: any) => {
         setIsPlaying(false);
         setProgress(0);
         console.error("Speech synthesis error:", event);
@@ -816,8 +799,10 @@ export default function TTSApp() {
     }
   };
 
-  const generateOnlineSpeech = async (textToSpeak: string, voice: Voice) => {
-    console.log(`Generating online speech for ${voice.name}`);
+  const generateOnlineSpeech = async (textToSpeak: string, voice?: Voice) => {
+    console.log(
+      `Generating online speech for ${voice?.name ?? "unknown voice"}`
+    );
 
     const response = await fetch("/api/tts", {
       method: "POST",
@@ -826,8 +811,8 @@ export default function TTSApp() {
       },
       body: JSON.stringify({
         text: textToSpeak,
-        voiceId: voice.id,
-        voiceName: voice.name,
+        voiceId: voice?.id ?? "online-1",
+        voiceName: voice?.name ?? "Online Voice",
       }),
     });
 
@@ -843,7 +828,9 @@ export default function TTSApp() {
 
     toast({
       title: "Speech generated successfully",
-      description: `Audio generated using ${voice.name}. Click play to listen.`,
+      description: `Audio generated${
+        voice ? ` using ${voice.name}` : ""
+      }. Click play to listen.`,
     });
   };
 
@@ -1027,7 +1014,7 @@ export default function TTSApp() {
     }
   };
 
-  // Enhanced Download Functions
+  // Enhanced Download / Share (WAV to match API)
   const downloadVoiceSettings = () => {
     const settingsData = {
       voiceSettings,
@@ -1083,7 +1070,6 @@ export default function TTSApp() {
     reader.readAsText(file);
   };
 
-  // Mobile-specific functions
   const shareAudio = async () => {
     if (!audioUrl) return;
 
@@ -1091,7 +1077,8 @@ export default function TTSApp() {
       try {
         const response = await fetch(audioUrl);
         const blob = await response.blob();
-        const file = new File([blob], "tts-audio.mp3", { type: "audio/mpeg" });
+        // WAV to match API response
+        const file = new File([blob], "tts-audio.wav", { type: "audio/wav" });
 
         await navigator.share({
           title: "Voice Studio Audio",
@@ -1111,59 +1098,19 @@ export default function TTSApp() {
     if (audioUrl) {
       const a = document.createElement("a");
       a.href = audioUrl;
-      a.download = `tts-audio-${Date.now()}.mp3`;
+      a.download = `tts-audio-${Date.now()}.wav`; // WAV to match API response
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
     }
   };
 
-  const fetchProjectInfo = async () => {
-    try {
-      const response = await fetch("/api/project-info");
-      if (response.ok) {
-        const info = await response.json();
-        setProjectInfo(info);
-      }
-    } catch (error) {
-      console.error("Failed to fetch project info:", error);
-    }
-  };
-
-  const downloadProject = async () => {
-    try {
-      setIsProcessing(true);
-
-      const response = await fetch("/api/download-project");
-
-      if (!response.ok) {
-        throw new Error("Failed to download project");
-      }
-
-      const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "ilack.tar.gz";
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-
-      toast({
-        title: "Project downloaded",
-        description: "The complete project has been downloaded successfully.",
-      });
-    } catch (error) {
-      console.error("Project download error:", error);
-      toast({
-        title: "Download failed",
-        description: "Failed to download the project. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsProcessing(false);
-    }
+  // Optional: project download stub so JSX handler exists
+  const downloadProject = () => {
+    toast({
+      title: "Not available",
+      description: "Project archive is not available yet.",
+    });
   };
 
   const currentVoice = allVoices.find((v) => v.id === selectedVoice);
@@ -1220,7 +1167,7 @@ export default function TTSApp() {
                   onPlay={generateSpeech}
                   onStop={stopSpeech}
                   onUpload={() => fileInputRef.current?.click()}
-                  audioUrl={audioUrl}
+                  audioUrl={audioUrl ?? undefined}
                   progress={progress}
                   currentVoiceName={currentVoice?.name}
                 />
@@ -1238,11 +1185,9 @@ export default function TTSApp() {
 
               {activeMobileTab === "downloads" && (
                 <MobileDownloads
-                  audioUrl={audioUrl}
+                  audioUrl={audioUrl ?? undefined}
                   onDownloadAudio={downloadAudio}
-                  onDownloadProject={downloadProject}
                   onShareAudio={shareAudio}
-                  projectInfo={projectInfo}
                 />
               )}
 
@@ -1250,12 +1195,10 @@ export default function TTSApp() {
                 <MobileSettings
                   voiceSettings={voiceSettings}
                   onVoiceSettingsChange={setVoiceSettings}
-                  onDownloadProject={downloadProject}
                   onExportSettings={downloadVoiceSettings}
                   onImportSettings={() => fileInputRef.current?.click()}
                   onClearAll={clearAll}
                   isMobile={mobileInfo.isMobile}
-                  projectInfo={projectInfo}
                 />
               )}
             </>
