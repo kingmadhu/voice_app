@@ -1,13 +1,10 @@
-Dockerfile
-.dockerignore
+# Good .dockerignore
 node_modules
-npm-debug.log
-README.md
 .next
+dist
 .git
-package-lock.json
-yarn.lock
-pnpm-lock.yaml
-test
-*.log
-local-*
+Dockerfile
+npm-debug.log*
+pnpm-lock.yaml # (keep lockfiles you don't use)
+yarn.lock      # (keep lockfiles you don't use)
+# DO NOT ignore src/ or app/
