@@ -69,7 +69,6 @@ import { MobileDownloads } from "@/components/mobile/mobile-downloads";
 
 // File Explorer
 import { FileItem } from "@/components/file-explorer";
-import ebooksData from "@/data/ebooks.json";
 
 interface Voice {
   id: string;
@@ -113,8 +112,7 @@ const fallbackVoices: Voice[] = [
   },
 ];
 
-// Load eBook content from JSON
-const predefinedEbookContent: FileItem[] = ebooksData.ebooks as FileItem[];
+// eBook content will be loaded dynamically from the server
 
 export default function TTSApp() {
   const [text, setText] = useState("");
@@ -162,6 +160,31 @@ export default function TTSApp() {
   const [activeContentTab, setActiveContentTab] = useState<"input" | "library">(
     "input"
   );
+
+  // Dynamic eBook content (loaded from data/Ebooks via API)
+  const [predefinedEbookContent, setPredefinedEbookContent] = useState<
+    FileItem[]
+  >([]);
+
+  useEffect(() => {
+    const fetchEbooks = async () => {
+      try {
+        const res = await fetch(`/api/ebooks?t=${Date.now()}`, {
+          cache: "no-store",
+        });
+        const json = await res.json();
+        if (json?.success) {
+          setPredefinedEbookContent(json.data || []);
+        } else {
+          console.error("Failed to load ebooks from API");
+        }
+      } catch (err) {
+        console.error("Error fetching ebooks:", err);
+      }
+    };
+
+    fetchEbooks();
+  }, []);
 
   // Mobile states
   const [activeMobileTab, setActiveMobileTab] = useState("home");
@@ -1254,7 +1277,6 @@ export default function TTSApp() {
                   audioUrl={audioUrl ?? undefined}
                   progress={progress}
                   currentVoiceName={currentVoice?.name}
-                  ebookContent={predefinedEbookContent}
                   expandedFolders={expandedFolders}
                   onToggleFolder={(id: string) => {
                     const newExpanded = new Set(expandedFolders);

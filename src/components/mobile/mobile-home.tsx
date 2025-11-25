@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Play,
   Mic,
@@ -43,7 +43,6 @@ interface MobileHomeProps {
   audioUrl?: string;
   progress: number;
   currentVoiceName?: string;
-  ebookContent?: FileItem[];
   expandedFolders?: Set<string>;
   onToggleFolder?: (id: string) => void;
   onSelectFile?: (content: string) => void;
@@ -62,13 +61,39 @@ export function MobileHome({
   audioUrl,
   progress,
   currentVoiceName,
-  ebookContent = [],
   expandedFolders = new Set(),
   onToggleFolder = () => {},
   onSelectFile = () => {},
 }: MobileHomeProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [showEbookLibrary, setShowEbookLibrary] = useState(false);
+  const [ebookContent, setEbookContent] = useState<FileItem[]>([]);
+  const [isLoadingEbooks, setIsLoadingEbooks] = useState(false);
+
+  useEffect(() => {
+    // Fetch ebook data from API
+    const fetchEbooks = async () => {
+      try {
+        setIsLoadingEbooks(true);
+        const response = await fetch(`/api/ebooks?t=${Date.now()}`, {
+          cache: "no-store",
+        });
+        const result = await response.json();
+
+        if (result.success) {
+          setEbookContent(result.data);
+        } else {
+          console.error("Failed to load ebooks");
+        }
+      } catch (error) {
+        console.error("Error fetching ebooks:", error);
+      } finally {
+        setIsLoadingEbooks(false);
+      }
+    };
+
+    fetchEbooks();
+  }, []);
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -206,6 +231,11 @@ export function MobileHome({
             <div className="flex items-center gap-2 pb-2 border-b">
               <Book className="h-5 w-5 text-orange-600" />
               <h3 className="font-semibold text-gray-900">📚 eBook Library</h3>
+              {isLoadingEbooks && (
+                <span className="text-xs text-gray-500 ml-auto">
+                  Loading...
+                </span>
+              )}
             </div>
             <div className="max-h-64 overflow-y-auto space-y-1">
               {ebookContent.map((item) => renderTreeItem(item))}
