@@ -43,6 +43,11 @@ import {
   User,
   Smartphone,
   Archive,
+  ChevronRight,
+  ChevronDown,
+  Folder,
+  FolderOpen,
+  Book,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Progress } from "@/components/ui/progress";
@@ -61,6 +66,9 @@ import { MobileHome } from "@/components/mobile/mobile-home";
 import { MobileVoiceSelector } from "@/components/mobile/mobile-voice-selector";
 import { MobileSettings } from "@/components/mobile/mobile-settings";
 import { MobileDownloads } from "@/components/mobile/mobile-downloads";
+
+// File Explorer
+import { FileItem } from "@/components/file-explorer";
 
 interface Voice {
   id: string;
@@ -102,28 +110,9 @@ const fallbackVoices: Voice[] = [
     gender: "Female",
     source: "online",
   },
-  {
-    id: "online-2",
-    name: "James (Natural)",
-    language: "en-US",
-    gender: "Male",
-    source: "online",
-  },
-  {
-    id: "online-3",
-    name: "Ava (Natural)",
-    language: "en-GB",
-    gender: "Female",
-    source: "online",
-  },
-  {
-    id: "online-4",
-    name: "Oliver (Natural)",
-    language: "en-GB",
-    gender: "Male",
-    source: "online",
-  },
 ];
+
+// eBook content will be loaded dynamically from the server
 
 export default function TTSApp() {
   const [text, setText] = useState("");
@@ -163,6 +152,39 @@ export default function TTSApp() {
     fileSizeFormatted: string;
     exists: boolean;
   } | null>(null);
+
+  // File Explorer states
+  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(
+    new Set()
+  );
+  const [activeContentTab, setActiveContentTab] = useState<"input" | "library">(
+    "input"
+  );
+
+  // Dynamic eBook content (loaded from data/Ebooks via API)
+  const [predefinedEbookContent, setPredefinedEbookContent] = useState<
+    FileItem[]
+  >([]);
+
+  useEffect(() => {
+    const fetchEbooks = async () => {
+      try {
+        const res = await fetch(`/api/ebooks?t=${Date.now()}`, {
+          cache: "no-store",
+        });
+        const json = await res.json();
+        if (json?.success) {
+          setPredefinedEbookContent(json.data || []);
+        } else {
+          console.error("Failed to load ebooks from API");
+        }
+      } catch (err) {
+        console.error("Error fetching ebooks:", err);
+      }
+    };
+
+    fetchEbooks();
+  }, []);
 
   // Mobile states
   const [activeMobileTab, setActiveMobileTab] = useState("home");
@@ -560,6 +582,91 @@ export default function TTSApp() {
         variant: "destructive",
       });
     }
+  };
+
+  // File Explorer Helper Functions
+  const toggleFolder = (folderId: string) => {
+    const newExpanded = new Set(expandedFolders);
+    if (newExpanded.has(folderId)) {
+      newExpanded.delete(folderId);
+    } else {
+      newExpanded.add(folderId);
+    }
+    setExpandedFolders(newExpanded);
+  };
+
+  const handleFileSelect = (file: FileItem) => {
+    if (file.type === "file") {
+      setText(file.content || "");
+      toast({
+        title: "Content Loaded",
+        description: `"${file.name}" loaded to editor`,
+      });
+    }
+  };
+
+  const renderTreeItem = (item: FileItem, depth: number = 0) => {
+    const isFolder = item.type === "folder";
+    const isExpanded = expandedFolders.has(item.id);
+    const hasChildren = isFolder && item.children && item.children.length > 0;
+
+    return (
+      <div key={item.id}>
+        <div
+          className="flex items-center"
+          style={{ paddingLeft: `${depth * 16}px` }}
+        >
+          {isFolder ? (
+            <>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 w-6 p-0 hover:bg-gray-200"
+                onClick={() => toggleFolder(item.id)}
+              >
+                {isExpanded ? (
+                  <ChevronDown className="h-4 w-4" />
+                ) : (
+                  <ChevronRight className="h-4 w-4" />
+                )}
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 px-2 justify-start flex-1"
+                onClick={() => handleFileSelect(item)}
+              >
+                {isExpanded ? (
+                  <FolderOpen className="h-4 w-4 mr-2 flex-shrink-0 text-yellow-600" />
+                ) : (
+                  <Folder className="h-4 w-4 mr-2 flex-shrink-0 text-yellow-500" />
+                )}
+                <span className="truncate">{item.name}</span>
+              </Button>
+            </>
+          ) : (
+            <>
+              <div className="w-6" />
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 px-2 justify-start flex-1"
+                onClick={() => handleFileSelect(item)}
+              >
+                <FileText className="h-4 w-4 mr-2 flex-shrink-0 text-blue-500" />
+                <span className="truncate">{item.name}</span>
+              </Button>
+            </>
+          )}
+        </div>
+
+        {isFolder && isExpanded && hasChildren && (
+          <div>
+            {item.children!.map((child) => renderTreeItem(child, depth + 1))}
+          </div>
+        )}
+      </div>
+    );
   };
 
   const generateSpeech = async () => {
@@ -1170,6 +1277,23 @@ export default function TTSApp() {
                   audioUrl={audioUrl ?? undefined}
                   progress={progress}
                   currentVoiceName={currentVoice?.name}
+                  expandedFolders={expandedFolders}
+                  onToggleFolder={(id: string) => {
+                    const newExpanded = new Set(expandedFolders);
+                    if (newExpanded.has(id)) {
+                      newExpanded.delete(id);
+                    } else {
+                      newExpanded.add(id);
+                    }
+                    setExpandedFolders(newExpanded);
+                  }}
+                  onSelectFile={(content: string) => {
+                    setText(content);
+                    toast({
+                      title: "Content Loaded",
+                      description: "eBook content loaded to editor",
+                    });
+                  }}
                 />
               )}
 
@@ -1364,61 +1488,108 @@ export default function TTSApp() {
               </CardContent>
             </Card>
 
-            {/* Text Input Card */}
+            {/* Text Input & Content Library Card with Tabs */}
             <Card className="border-0 shadow-xl bg-white/80 backdrop-blur-sm">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <FileText className="h-5 w-5 text-purple-600" />
-                  Text Input
+                  Content & Editor
                 </CardTitle>
                 <CardDescription>
-                  Enter or paste your text below
+                  Enter text, upload files, or browse predefined eBooks
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
-                {/* Highlighted Text Display */}
-                {isPlaying && words.length > 0 && (
-                  <div className="p-4 bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg border border-purple-200">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Volume2 className="h-4 w-4 text-purple-600" />
-                      <span className="text-sm font-medium text-purple-800">
-                        {isPaused ? "Paused" : "Speaking"}...
-                      </span>
-                    </div>
-                    <div
-                      ref={wordsContainerRef}
-                      className="text-sm leading-relaxed max-h-32 overflow-y-auto"
+              <CardContent>
+                <Tabs
+                  value={activeContentTab}
+                  onValueChange={(value) =>
+                    setActiveContentTab(value as "input" | "library")
+                  }
+                  className="w-full"
+                >
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger
+                      value="input"
+                      className="flex items-center gap-2"
                     >
-                      {words.map((word, index) => (
-                        <span
-                          id={`word-${index}`}
-                          key={index}
-                          className={`transition-all duration-200 ${
-                            index === currentWordIndex
-                              ? "bg-gradient-to-r from-purple-600 to-pink-600 text-white px-1 rounded font-semibold"
-                              : index < currentWordIndex
-                              ? "text-gray-500"
-                              : "text-gray-800"
-                          }`}
-                        >
-                          {word}{" "}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
+                      <FileText className="h-4 w-4" />
+                      Direct Input
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value="library"
+                      className="flex items-center gap-2"
+                    >
+                      <Book className="h-4 w-4" />
+                      eBook Library
+                    </TabsTrigger>
+                  </TabsList>
 
-                <Textarea
-                  placeholder="Enter your text here, or upload a file above..."
-                  value={text}
-                  onChange={(e) => setText(e.target.value)}
-                  className="min-h-[200px] resize-none border-gray-200 focus:border-purple-500 focus:ring-purple-500"
-                  disabled={isProcessing}
-                />
-                <div className="flex items-center justify-between text-sm text-gray-500">
-                  <span>{text.length} characters</span>
-                  <span>~{Math.ceil(text.length / 5)} words</span>
-                </div>
+                  {/* Direct Input Tab */}
+                  <TabsContent value="input" className="space-y-4 mt-4">
+                    {/* Highlighted Text Display */}
+                    {isPlaying && words.length > 0 && (
+                      <div className="p-4 bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg border border-purple-200">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Volume2 className="h-4 w-4 text-purple-600" />
+                          <span className="text-sm font-medium text-purple-800">
+                            {isPaused ? "Paused" : "Speaking"}...
+                          </span>
+                        </div>
+                        <div
+                          ref={wordsContainerRef}
+                          className="text-sm leading-relaxed max-h-32 overflow-y-auto"
+                        >
+                          {words.map((word, index) => (
+                            <span
+                              id={`word-${index}`}
+                              key={index}
+                              className={`transition-all duration-200 ${
+                                index === currentWordIndex
+                                  ? "bg-gradient-to-r from-purple-600 to-pink-600 text-white px-1 rounded font-semibold"
+                                  : index < currentWordIndex
+                                  ? "text-gray-500"
+                                  : "text-gray-800"
+                              }`}
+                            >
+                              {word}{" "}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    <Textarea
+                      placeholder="Enter your text here, or upload a file above..."
+                      value={text}
+                      onChange={(e) => setText(e.target.value)}
+                      className="min-h-[200px] resize-none border-gray-200 focus:border-purple-500 focus:ring-purple-500"
+                      disabled={isProcessing}
+                    />
+                    <div className="flex items-center justify-between text-sm text-gray-500">
+                      <span>{text.length} characters</span>
+                      <span>~{Math.ceil(text.length / 5)} words</span>
+                    </div>
+                  </TabsContent>
+
+                  {/* eBook Library Tab */}
+                  <TabsContent value="library" className="space-y-4 mt-4">
+                    <div className="space-y-2 max-h-96 overflow-y-auto">
+                      <p className="text-sm text-gray-600 mb-3">
+                        📚 Select an eBook and episode to load its content into
+                        the editor
+                      </p>
+                      {predefinedEbookContent.length > 0 ? (
+                        predefinedEbookContent.map((item) =>
+                          renderTreeItem(item)
+                        )
+                      ) : (
+                        <p className="text-sm text-gray-500">
+                          No eBooks available
+                        </p>
+                      )}
+                    </div>
+                  </TabsContent>
+                </Tabs>
               </CardContent>
             </Card>
           </div>
