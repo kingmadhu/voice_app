@@ -571,7 +571,9 @@ export default function TTSApp() {
         currentVoice.source === "browser" ||
         currentVoice.source === "local"
       ) {
-        await generateBrowserSpeech(previewText, currentVoice);
+        await generateBrowserSpeech(previewText, currentVoice, {
+          interrupt: true,
+        });
       } else {
         await generateOnlineSpeech(previewText, currentVoice);
       }
@@ -690,7 +692,9 @@ export default function TTSApp() {
         selectedVoiceObj?.source === "local"
       ) {
         // Use Web Speech API for browser/local voices
-        await generateBrowserSpeech(text, selectedVoiceObj);
+        await generateBrowserSpeech(text, selectedVoiceObj, {
+          interrupt: true,
+        });
       } else {
         // Use online TTS API
         await generateOnlineSpeech(text, selectedVoiceObj);
@@ -707,10 +711,18 @@ export default function TTSApp() {
     }
   };
 
-  const generateBrowserSpeech = async (textToSpeak: string, voice: Voice) => {
+  const generateBrowserSpeech = async (
+    textToSpeak: string,
+    voice: Voice,
+    options?: { interrupt?: boolean }
+  ) => {
     if ("speechSynthesis" in window) {
-      // Cancel any ongoing speech
-      speechSynthesis.cancel();
+      const shouldInterrupt = options?.interrupt ?? true;
+
+      // Cancel any ongoing speech only if caller allows interruption
+      if (shouldInterrupt) {
+        speechSynthesis.cancel();
+      }
 
       // Wait for voices to be loaded if not already
       if (!voicesLoaded || availableVoices.length === 0) {
@@ -880,27 +892,40 @@ export default function TTSApp() {
         }
       };
 
-      utterance.onend = () => {
-        setIsPlaying(false);
-        setIsPaused(false);
-        setCurrentWordIndex(-1);
-        setProgress(100);
-        utteranceRef.current = null;
-        toast({
-          title: "Speech completed",
-          description: `Text read using ${voice.name}.`,
-        });
-      };
+      // Return a promise that resolves when the utterance finishes or rejects on error
+      const playPromise: Promise<void> = new Promise((resolve, reject) => {
+        utterance.onend = () => {
+          setIsPlaying(false);
+          setIsPaused(false);
+          setCurrentWordIndex(-1);
+          setProgress(100);
+          utteranceRef.current = null;
+          toast({
+            title: "Speech completed",
+            description: `Text read using ${voice.name}.`,
+          });
+          resolve();
+        };
 
-      utterance.onerror = (event: any) => {
-        setIsPlaying(false);
-        setProgress(0);
-        console.error("Speech synthesis error:", event);
-        throw new Error(`Speech synthesis failed: ${event.error}`);
-      };
+        utterance.onerror = (event: any) => {
+          setIsPlaying(false);
+          setProgress(0);
+          console.error("Speech synthesis error:", event);
+          utteranceRef.current = null;
+          reject(new Error(`Speech synthesis failed: ${event.error || event}`));
+        };
 
-      utteranceRef.current = utterance;
-      speechSynthesis.speak(utterance);
+        utteranceRef.current = utterance;
+        try {
+          speechSynthesis.speak(utterance);
+        } catch (err) {
+          // Synchronous error while trying to speak
+          utteranceRef.current = null;
+          reject(err);
+        }
+      });
+
+      return playPromise;
     } else {
       throw new Error("Speech synthesis is not supported in your browser");
     }
@@ -1100,7 +1125,10 @@ export default function TTSApp() {
             segmentVoice.source === "browser" ||
             segmentVoice.source === "local"
           ) {
-            await generateBrowserSpeech(segment.text, segmentVoice);
+            // Do not interrupt ongoing speech between segments; await completion
+            await generateBrowserSpeech(segment.text, segmentVoice, {
+              interrupt: false,
+            });
           } else {
             await generateOnlineSpeech(segment.text, segmentVoice);
           }
